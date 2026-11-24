@@ -36,6 +36,7 @@ import (
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util/display"
+	"github.com/rook/rook/pkg/util/log"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -1084,10 +1085,13 @@ func unmountDevice(context *clusterd.Context, devicePath string) error {
 	return nil
 }
 
-// WipeDevicesFromOtherClusters wipes the OSD backed disks if they have metadata from a different ceph cluster.
-// The wiped disks can then be used to prepare OSDs for the current ceph cluster.
+// WipeDevicesFromOtherClusters wipes eligible devices containing metadata
+// from another Ceph cluster or an interrupted OSD preparation attempt,
+// allowing them to be reused for OSD preparation in the current cluster.
 func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error {
 	args := []string{"raw", "list", "--format", "json"}
+
+	_ = log.LogAsJSON(logger.Debugf, "Devices", context.Devices)
 
 	result, err := callCephVolume(context, args...)
 	if err != nil {
@@ -1108,7 +1112,6 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		if err != nil {
 			return errors.Wrapf(err, "failed to clean up encrypted disks from other clusters")
 		}
-		return nil
 	}
 
 	for _, existingOSD := range existingOSDs {
@@ -1150,7 +1153,7 @@ func (a *OsdAgent) WipeDevicesFromOtherClusters(context *clusterd.Context) error
 		}
 	}
 
-	return nil
+	return a.wipeIncompleteOSDDeviceOnPVC(context, existingOSDs)
 }
 
 func wipeEncryptedDevicesFromOtherClusters(context *clusterd.Context, currentClusterFSID string) error {

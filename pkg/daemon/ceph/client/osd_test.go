@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -26,7 +27,35 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestGetOSDIDByUUID(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		dump string
+		uuid string
+		want int
+	}{
+		{name: "nil OSD list", dump: `{}`, uuid: "target", want: -1},
+		{name: "empty OSD list", dump: `{"osds":[]}`, uuid: "target", want: -1},
+		{name: "empty UUID must not match", dump: `{"osds":[{"osd":0,"uuid":""}]}`, want: -1},
+		{name: "unknown UUID", dump: `{"osds":[{"osd":7,"uuid":"other"}]}`, uuid: "target", want: -1},
+		{name: "OSD zero", dump: `{"osds":[{"osd":0,"uuid":"target"}]}`, uuid: "target", want: 0},
+		{name: "find matching OSD among others", dump: `{"osds":[{"osd":2,"uuid":"before"},{"osd":7,"uuid":"target"},{"osd":9,"uuid":"after"}]}`, uuid: "target", want: 7},
+		{name: "negative ID", dump: `{"osds":[{"osd":-2,"uuid":"target"}]}`, uuid: "target", want: -1},
+		{name: "missing ID", dump: `{"osds":[{"uuid":"target"}]}`, uuid: "target", want: -1},
+		{name: "fractional ID", dump: `{"osds":[{"osd":1.5,"uuid":"target"}]}`, uuid: "target", want: -1},
+		{name: "overflowing ID", dump: `{"osds":[{"osd":9223372036854775808,"uuid":"target"}]}`, uuid: "target", want: -1},
+		{name: "ignore invalid ID for another UUID", dump: `{"osds":[{"osd":-2,"uuid":"other"},{"osd":7,"uuid":"target"}]}`, uuid: "target", want: 7},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var dump OSDDump
+			require.NoError(t, json.Unmarshal([]byte(tt.dump), &dump))
+			assert.Equal(t, tt.want, dump.GetOSDIDByUUID(tt.uuid))
+		})
+	}
+}
 
 var (
 	fakeOsdTree = `{

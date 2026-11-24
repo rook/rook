@@ -53,9 +53,11 @@ type OSDNodeUsage struct {
 
 type OSDDump struct {
 	OSDs []struct {
-		OSD json.Number `json:"osd"`
-		Up  json.Number `json:"up"`
-		In  json.Number `json:"in"`
+		OSD   json.Number `json:"osd"`
+		Up    json.Number `json:"up"`
+		In    json.Number `json:"in"`
+		UUID  string      `json:"uuid"`
+		State []string    `json:"state"`
 	} `json:"osds"`
 	Flags             string              `json:"flags"`
 	CrushNodeFlags    map[string][]string `json:"crush_node_flags"`
@@ -180,6 +182,24 @@ func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	}
 
 	return 0, 0, errors.Errorf("not found osd.%d in OSDDump", id)
+}
+
+// GetOSDIDByUUID returns the OSD ID associated with uuid.
+func (dump *OSDDump) GetOSDIDByUUID(uuid string) int {
+	if uuid == "" {
+		return -1
+	}
+	for _, osd := range dump.OSDs {
+		if osd.UUID != uuid {
+			continue
+		}
+		id, err := strconv.Atoi(osd.OSD.String())
+		if err != nil || id < 0 {
+			return -1
+		}
+		return id
+	}
+	return -1
 }
 
 // Exists reports whether the given OSD id is present in the osdmap.
@@ -367,6 +387,22 @@ func OSDDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) 
 	if _, err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "failed to destroy osd.%d", osdID)
 	}
+	return nil
+}
+
+// PurgeNewOSD removes a newly allocated OSD using Ceph's purge-new command.
+// Ceph rejects the request if the OSD is no longer marked new.
+func PurgeNewOSD(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) error {
+	if osdID < 0 {
+		return errors.Errorf("cannot purge new OSD with invalid ID %d", osdID)
+	}
+	args := []string{"osd", "purge-new", fmt.Sprintf("osd.%d", osdID), confirmFlag}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	_, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to purge new osd.%d", osdID)
+	}
+
 	return nil
 }
 
