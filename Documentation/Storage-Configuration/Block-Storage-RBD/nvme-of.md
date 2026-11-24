@@ -150,7 +150,16 @@ via the NVMe-oF CSI driver.
 
 Create a StorageClass that uses the NVMe-oF CSI driver.
 The `subsystemNQN` parameter places all in-cluster PVCs into a shared subsystem,
-and the `listeners` list tells the CSI node plugin which gateways to connect to for I/O.
+and the `networkMask` parameter enables auto-discovery of gateway listeners
+whose IPs fall within the specified CIDR.
+
+Obtain the pod network CIDR for your cluster:
+
+```console
+kubectl get nodes -o jsonpath='{.items[0].spec.podCIDR}'
+```
+
+Replace `NETWORK_MASK_PLACEHOLDER` in the StorageClass with the value returned above.
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -163,15 +172,7 @@ parameters:
   subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
   nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
-  listeners: |
-    [
-      {
-        "hostname": "rook-ceph-nvmeof-nvmeof-a"
-      },
-      {
-        "hostname": "rook-ceph-nvmeof-nvmeof-b"
-      }
-    ]
+  networkMask: "NETWORK_MASK_PLACEHOLDER"
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node

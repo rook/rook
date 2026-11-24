@@ -1,6 +1,8 @@
 # StorageClass for in-cluster NVMe-oF consumption.
 # Pods inside the Kubernetes cluster consume volumes via the NVMe-oF CSI driver.
-# The CSI node plugin on each worker connects to gateways using the "listeners" list.
+# The CSI node plugin on each worker auto-discovers gateway listeners whose IPs
+# fall within the networkMask CIDR.
+# Obtain the value with: kubectl get nodes -o jsonpath='{.items[0].spec.podCIDR}'
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -13,27 +15,18 @@ parameters:
   # Management API - talks to gateway to create subsystems/namespaces
   nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
-  # Data Plane - worker nodes connect here for actual I/O
-  # List ALL gateway pods for HA and multipath
-  listeners: |
-    [
-      {
-        "hostname": "rook-ceph-nvmeof-nvmeof-a"
-      },
-      {
-        "hostname": "rook-ceph-nvmeof-nvmeof-b"
-      }
-    ]
+  # Data Plane - auto-discover gateway listeners by pod network CIDR
+  networkMask: "NETWORK_MASK_PLACEHOLDER"
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
   csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
-  csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
-  csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph
   csi.storage.k8s.io/node-expand-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-modify-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-modify-secret-namespace: rook-ceph
   imageFormat: "2"
   imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
 reclaimPolicy: Delete

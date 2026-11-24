@@ -1198,6 +1198,9 @@ EOF
     return 1
   fi
 
+  local pod_cidr
+  pod_cidr="$(kubectl get nodes -o jsonpath='{.items[0].spec.podCIDR}')"
+  sed -i "s|NETWORK_MASK_PLACEHOLDER|${pod_cidr}|" storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   if ! kubectl wait pvc/nvmeof-volume --for=jsonpath='{.status.phase}'=Bound --timeout=300s; then
