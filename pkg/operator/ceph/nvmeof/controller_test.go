@@ -366,26 +366,6 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 		}
 	}
 
-	assertResourcesExist := func(t *testing.T, cCtx *clusterd.Context, names ...string) {
-		t.Helper()
-
-		depNames := []string{}
-		deps, err := cCtx.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
-		assert.NoError(t, err)
-		for _, dep := range deps.Items {
-			depNames = append(depNames, dep.Name)
-		}
-		assert.ElementsMatch(t, names, depNames)
-
-		svcNames := []string{}
-		svcs, err := cCtx.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
-		assert.NoError(t, err)
-		for _, dep := range svcs.Items {
-			svcNames = append(svcNames, dep.Name)
-		}
-		assert.ElementsMatch(t, names, svcNames)
-	}
-
 	assertDeploymentsExist := func(t *testing.T, cCtx *clusterd.Context, names ...string) {
 		t.Helper()
 
@@ -420,7 +400,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 
 		t.Run("double reconcile", func(t *testing.T) {
@@ -428,7 +409,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 	})
 
@@ -444,7 +426,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 
 		t.Run("double reconcile", func(t *testing.T) {
@@ -452,7 +435,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 	})
 
@@ -468,7 +452,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 
 			err = cl.Get(ctx, client.ObjectKeyFromObject(nvmeof), nvmeof)
 			assert.NoError(t, err)
@@ -480,9 +465,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
 			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
-			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 
 		t.Run("scale from 3 to 1 gateway", func(t *testing.T) {
@@ -496,7 +480,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 
 			err = cl.Get(ctx, client.ObjectKeyFromObject(nvmeof), nvmeof)
 			assert.NoError(t, err)
@@ -508,9 +493,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r)
-			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
 			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
-			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 
 		t.Run("scale down then back up preserves service", func(t *testing.T) {
@@ -524,7 +508,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			res, err := r.Reconcile(ctx, req)
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 
 			// Record the service UID before scale-down to verify it persists
 			svcBefore, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
@@ -542,7 +527,7 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a")
-			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 
 			// Verify Service "b" still exists with same UID (was not deleted and recreated)
 			svcDuring, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
@@ -559,7 +544,8 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			res, err = r.Reconcile(ctx, req)
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 
 			// Verify Service "b" still has same UID after scale-up (reused, not recreated)
 			svcAfter, getErr := cCtx.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-nvmeof-my-nvmeof-b", metav1.GetOptions{})
@@ -590,8 +576,9 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			res, err := r.Reconcile(ctx, req)
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
-			assertCephNVMeOFGatewayReady(t, r, "my-nvmeof") // first cluster should be ready
-			assertResourcesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertCephNVMeOFGatewayReady(t, r, "my-nvmeof")
+			assertDeploymentsExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c")
+			assertServicesExist(t, cCtx, "rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt")
 		})
 
 		t.Run("reconcile second CephNVMeOFGateway cluster", func(t *testing.T) {
@@ -599,9 +586,13 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 			assertCephNVMeOFGatewayReady(t, r, "my-nvmeof", "nvmeof2")
-			assertResourcesExist(t, cCtx,
+			assertDeploymentsExist(t, cCtx,
 				"rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c",
 				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b",
+			)
+			assertServicesExist(t, cCtx,
+				"rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt",
+				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b", "rook-ceph-nvmeof-nvmeof2-mgmt",
 			)
 		})
 
@@ -617,14 +608,13 @@ func TestCephNVMeOFGatewayController(t *testing.T) {
 			assert.Equal(t, res.RequeueAfter, time.Duration(0))
 
 			assertCephNVMeOFGatewayReady(t, r, "my-nvmeof", "nvmeof2")
-			// Deployments should be scaled down, but Services are preserved to keep stable ClusterIPs
 			assertDeploymentsExist(t, cCtx,
 				"rook-ceph-nvmeof-my-nvmeof-a",
 				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b",
 			)
 			assertServicesExist(t, cCtx,
-				"rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c",
-				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b",
+				"rook-ceph-nvmeof-my-nvmeof-a", "rook-ceph-nvmeof-my-nvmeof-b", "rook-ceph-nvmeof-my-nvmeof-c", "rook-ceph-nvmeof-my-nvmeof-mgmt",
+				"rook-ceph-nvmeof-nvmeof2-a", "rook-ceph-nvmeof-nvmeof2-b", "rook-ceph-nvmeof-nvmeof2-mgmt",
 			)
 		})
 	})

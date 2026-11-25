@@ -161,7 +161,7 @@ parameters:
   clusterID: rook-ceph
   pool: nvmeof
   subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
-  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-mgmt.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
   listeners: |
     [

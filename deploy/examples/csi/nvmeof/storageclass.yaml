@@ -11,7 +11,8 @@ parameters:
   pool: nvmeof
   subsystemNQN: nqn.2016-06.io.spdk:cnode1.rook-ceph
   # Management API - talks to gateway to create subsystems/namespaces
-  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
+  # Uses the management service that load-balances across all gateways
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-mgmt.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
   # Data Plane - worker nodes connect here for actual I/O
   # List ALL gateway pods for HA and multipath

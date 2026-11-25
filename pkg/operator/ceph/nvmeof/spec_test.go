@@ -585,7 +585,7 @@ func TestDeploymentSpec(t *testing.T) {
 			portNames = append(portNames, p.Name)
 		}
 		assert.Contains(t, portNames, "io")
-		assert.Contains(t, portNames, "gateway")
+		assert.NotContains(t, portNames, "gateway", "gateway port (5500) should not be in per-gateway service")
 		assert.Contains(t, portNames, "monitor")
 		assert.Contains(t, portNames, "discovery")
 
@@ -593,14 +593,62 @@ func TestDeploymentSpec(t *testing.T) {
 			switch p.Name {
 			case "io":
 				assert.Equal(t, int32(nvmeofIOPort), p.Port)
-			case "gateway":
-				assert.Equal(t, int32(nvmeofGatewayPort), p.Port)
 			case "monitor":
 				assert.Equal(t, int32(nvmeofMonitorPort), p.Port)
 			case "discovery":
 				assert.Equal(t, int32(nvmeofDiscoveryPort), p.Port)
 			}
 		}
+	})
+
+	t.Run("management service generation", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Group:     "group-a",
+				Instances: 2,
+			},
+		}
+
+		r, _ := newDeploymentSpecTest(t)
+
+		svc := r.generateCephNVMeOFManagementService(nvmeof)
+		assert.Equal(t, "rook-ceph-nvmeof-my-nvmeof-mgmt", svc.Name)
+		assert.Equal(t, "rook-ceph-test-ns", svc.Namespace)
+
+		assert.Len(t, svc.Spec.Ports, 1)
+		assert.Equal(t, "gateway", svc.Spec.Ports[0].Name)
+		assert.Equal(t, int32(nvmeofGatewayPort), svc.Spec.Ports[0].Port)
+
+		// Selector should match all pods of the CR (no daemon ID)
+		assert.Equal(t, AppName, svc.Spec.Selector["app"])
+		assert.Equal(t, nvmeof.Name, svc.Spec.Selector["app.kubernetes.io/part-of"])
+		_, hasDaemonID := svc.Spec.Selector["ceph_daemon_id"]
+		assert.False(t, hasDaemonID, "management service selector must not contain ceph_daemon_id")
+	})
+
+	t.Run("management service with host network", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Group:     "group-a",
+				Instances: 1,
+			},
+		}
+
+		r, _ := newDeploymentSpecTest(t)
+		r.cephClusterSpec.Network = cephv1.NetworkSpec{
+			HostNetwork: true,
+		}
+
+		svc := r.generateCephNVMeOFManagementService(nvmeof)
+		assert.Equal(t, v1.ClusterIPNone, svc.Spec.ClusterIP)
 	})
 
 	t.Run("custom ports", func(t *testing.T) {
@@ -635,9 +683,75 @@ func TestDeploymentSpec(t *testing.T) {
 
 		svc := r.generateCephNVMeOFService(nvmeof, "0")
 		assertServicePort(t, svc.Spec.Ports, "io", 14420)
-		assertServicePort(t, svc.Spec.Ports, "gateway", 15500)
 		assertServicePort(t, svc.Spec.Ports, "monitor", 15499)
 		assertServicePort(t, svc.Spec.Ports, "discovery", 18009)
+
+		mgmtSvc := r.generateCephNVMeOFManagementService(nvmeof)
+		assertServicePort(t, mgmtSvc.Spec.Ports, "gateway", 15500)
+	})
+
+	t.Run("readiness probe on gateway port", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Group:     "group-a",
+				Instances: 1,
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		var nvmeofCont *v1.Container
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == "nvmeof-gateway" {
+				nvmeofCont = &d.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		require.NotNil(t, nvmeofCont)
+		require.NotNil(t, nvmeofCont.ReadinessProbe)
+		assert.NotNil(t, nvmeofCont.ReadinessProbe.TCPSocket)
+		assert.Equal(t, int32(nvmeofGatewayPort), nvmeofCont.ReadinessProbe.TCPSocket.Port.IntVal)
+	})
+
+	t.Run("readiness probe uses custom gateway port", func(t *testing.T) {
+		nvmeof := &cephv1.CephNVMeOFGateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nvmeof",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NVMeOFGatewaySpec{
+				Image:     "quay.io/ceph/nvmeof:1.5",
+				Group:     "group-a",
+				Instances: 1,
+				Ports: &cephv1.NVMeOFGatewayPorts{
+					GatewayPort: 15500,
+				},
+			},
+		}
+
+		r, configHash := newDeploymentSpecTest(t)
+		configMapName := fmt.Sprintf("rook-ceph-nvmeof-%s-config", nvmeof.Name)
+		d, err := r.makeDeployment(nvmeof, "0", configMapName, configHash)
+		assert.NoError(t, err)
+
+		var nvmeofCont *v1.Container
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == "nvmeof-gateway" {
+				nvmeofCont = &d.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		require.NotNil(t, nvmeofCont)
+		require.NotNil(t, nvmeofCont.ReadinessProbe)
+		assert.Equal(t, int32(15500), nvmeofCont.ReadinessProbe.TCPSocket.Port.IntVal)
 	})
 }
 

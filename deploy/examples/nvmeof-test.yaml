@@ -25,5 +25,5 @@ spec:
   # Set the image property to override the default:
   # image: quay.io/ceph/nvmeof:<version>
   group: group-a
-  instances: 1
+  instances: 2
   hostNetwork: false

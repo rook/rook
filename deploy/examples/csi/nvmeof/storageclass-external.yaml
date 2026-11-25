@@ -16,7 +16,8 @@ parameters:
   clusterID: rook-ceph
   pool: nvmeof
   # Management API - talks to gateway to create subsystems/namespaces
-  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-a.rook-ceph.svc.cluster.local"
+  # Uses the management service that load-balances across all gateways
+  nvmeofGatewayAddress: "rook-ceph-nvmeof-nvmeof-mgmt.rook-ceph.svc.cluster.local"
   nvmeofGatewayPort: "5500"
   # List ALL gateway pods so the CSI driver creates listeners on each gateway.
   # External clients connect to these gateways via LoadBalancer services.

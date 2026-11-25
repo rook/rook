@@ -84,7 +84,7 @@ var preStopScript string
 func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) *v1.Service {
 	labels := getLabels(nvmeof, daemonID)
 	serviceName := instanceName(nvmeof, daemonID)
-	ioPort, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
+	ioPort, _, monitorPort, discoveryPort := getPorts(nvmeof)
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,12 +102,6 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 					Protocol:   v1.ProtocolTCP,
 				},
 				{
-					Name:       "gateway",
-					Port:       gatewayPort,
-					TargetPort: intstr.FromInt(int(gatewayPort)),
-					Protocol:   v1.ProtocolTCP,
-				},
-				{
 					Name:       "monitor",
 					Port:       monitorPort,
 					TargetPort: intstr.FromInt(int(monitorPort)),
@@ -117,6 +111,37 @@ func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFService(nvmeof *cephv1.Ce
 					Name:       "discovery",
 					Port:       discoveryPort,
 					TargetPort: intstr.FromInt(int(discoveryPort)),
+					Protocol:   v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
+	if hostNetwork {
+		svc.Spec.ClusterIP = v1.ClusterIPNone
+	}
+
+	return svc
+}
+
+func (r *ReconcileCephNVMeOFGateway) generateCephNVMeOFManagementService(nvmeof *cephv1.CephNVMeOFGateway) *v1.Service {
+	_, gatewayPort, _, _ := getPorts(nvmeof)
+	selector := getManagementSelector(nvmeof)
+
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      managementServiceName(nvmeof),
+			Namespace: nvmeof.Namespace,
+			Labels:    selector,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: selector,
+			Ports: []v1.ServicePort{
+				{
+					Name:       "gateway",
+					Port:       gatewayPort,
+					TargetPort: intstr.FromInt(int(gatewayPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
@@ -172,6 +197,45 @@ func (r *ReconcileCephNVMeOFGateway) createCephNVMeOFService(nvmeof *cephv1.Ceph
 
 	_, _, _, discoveryPort := getPorts(nvmeof)
 	logger.Infof("ceph nvmeof gateway service running at %s:%d", svc.Spec.ClusterIP, discoveryPort)
+	return nil
+}
+
+func (r *ReconcileCephNVMeOFGateway) createCephNVMeOFManagementService(nvmeof *cephv1.CephNVMeOFGateway) error {
+	s := r.generateCephNVMeOFManagementService(nvmeof)
+
+	err := controllerutil.SetControllerReference(nvmeof, s, r.scheme)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference for management service %q", s.Name)
+	}
+
+	existing, err := r.context.Clientset.CoreV1().Services(nvmeof.Namespace).Get(r.opManagerContext, s.Name, metav1.GetOptions{})
+	if err == nil {
+		hostNetwork := nvmeof.IsHostNetwork(r.cephClusterSpec)
+		needsHeadless := hostNetwork
+		isHeadless := existing.Spec.ClusterIP == v1.ClusterIPNone
+		if needsHeadless != isHeadless {
+			logger.Infof("hostNetwork changed for %q (headless=%t, need=%t), recreating management service", s.Name, isHeadless, needsHeadless)
+			if err := r.context.Clientset.CoreV1().Services(nvmeof.Namespace).Delete(r.opManagerContext, s.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete stale management service %q", s.Name)
+			}
+			svc, err := r.context.Clientset.CoreV1().Services(nvmeof.Namespace).Create(r.opManagerContext, s, metav1.CreateOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "failed to recreate management service %q", s.Name)
+			}
+			logger.Infof("recreated management service %q with ClusterIP=%s", s.Name, svc.Spec.ClusterIP)
+			return nil
+		}
+	} else if !kerrors.IsNotFound(err) {
+		return errors.Wrapf(err, "failed to get existing management service %q", s.Name)
+	}
+
+	svc, err := k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, nvmeof.Namespace, s)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create/update management service %q", s.Name)
+	}
+
+	_, gatewayPort, _, _ := getPorts(nvmeof)
+	logger.Infof("ceph nvmeof management service running at %s:%d", svc.Spec.ClusterIP, gatewayPort)
 	return nil
 }
 
@@ -478,6 +542,7 @@ func (r *ReconcileCephNVMeOFGateway) daemonContainer(nvmeof *cephv1.CephNVMeOFGa
 	if nvmeof.Spec.LivenessProbe != nil {
 		container.LivenessProbe = r.defaultLivenessProbe(nvmeof)
 	}
+	container.ReadinessProbe = r.defaultReadinessProbe(nvmeof)
 	result := cephconfig.ConfigureLivenessProbe(container, nvmeof.Spec.LivenessProbe)
 	return result, nil
 }
@@ -487,6 +552,21 @@ func (r *ReconcileCephNVMeOFGateway) defaultLivenessProbe(nvmeof *cephv1.CephNVM
 	return controller.GenerateLivenessProbeTcpPort(ioPort, 10)
 }
 
+func (r *ReconcileCephNVMeOFGateway) defaultReadinessProbe(nvmeof *cephv1.CephNVMeOFGateway) *v1.Probe {
+	_, gatewayPort, _, _ := getPorts(nvmeof)
+	return &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.FromInt32(gatewayPort),
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      5,
+		FailureThreshold:    3,
+	}
+}
+
 func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
 	return controller.CephDaemonAppLabels(
 		AppName, n.Namespace, "nvmeof", n.Name+"-"+daemonID, n.Name,
@@ -494,8 +574,19 @@ func getLabels(n *cephv1.CephNVMeOFGateway, daemonID string) map[string]string {
 	)
 }
 
+func getManagementSelector(n *cephv1.CephNVMeOFGateway) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr:             AppName,
+		"app.kubernetes.io/part-of": n.Name,
+	}
+}
+
 func instanceName(nvmeof *cephv1.CephNVMeOFGateway, daemonID string) string {
 	return fmt.Sprintf("%s-%s-%s", AppName, nvmeof.Name, daemonID)
+}
+
+func managementServiceName(nvmeof *cephv1.CephNVMeOFGateway) string {
+	return fmt.Sprintf("%s-%s-mgmt", AppName, nvmeof.Name)
 }
 
 // getNVMeOFImage returns the image to use for the NVMe-oF gateway.

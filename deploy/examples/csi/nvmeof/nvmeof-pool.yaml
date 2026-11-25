@@ -4,6 +4,6 @@ metadata:
   name: nvmeof
   namespace: rook-ceph # namespace:cluster
 spec:
-  failureDomain: host
+  failureDomain: osd
   replicated:
-    size: 3
+    size: 1

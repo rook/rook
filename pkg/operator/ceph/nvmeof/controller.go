@@ -327,6 +327,10 @@ func (r *ReconcileCephNVMeOFGateway) reconcileCreateCephNVMeOFGateway(cephNVMeOF
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update gateway")
 	}
 
+	if err := r.createCephNVMeOFManagementService(cephNVMeOFGateway); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to create management service")
+	}
+
 	return reconcile.Result{}, nil
 }
 
