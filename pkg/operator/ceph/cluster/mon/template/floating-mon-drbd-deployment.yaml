@@ -57,7 +57,6 @@ spec:
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
-      serviceAccount: rook-ceph-default
       serviceAccountName: rook-ceph-default
       shareProcessNamespace: true
       terminationGracePeriodSeconds: 30
@@ -584,3 +583,4 @@ spec:
                       echo "Retry in 1s..."
                       sleep 1
                     done
+
