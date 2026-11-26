@@ -83,6 +83,66 @@ func TestValidatePinningValues(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCreateCephFSSubVolumeGroup(t *testing.T) {
+	uid := int32(1000)
+	gid := int32(2000)
+	mode := "0755"
+
+	t.Run("with uid gid and mode", func(t *testing.T) {
+		var capturedArgs []string
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "info" {
+				return "", errors.New("does not exist: (2) No such file or directory")
+			}
+			if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "create" {
+				capturedArgs = args
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		}
+
+		spec := &cephv1.CephFilesystemSubVolumeGroupSpec{
+			UID:  &uid,
+			GID:  &gid,
+			Mode: &mode,
+		}
+
+		err := CreateCephFSSubVolumeGroup(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "myfs", "csi", spec)
+		assert.NoError(t, err)
+		assert.Contains(t, capturedArgs, "--uid=1000")
+		assert.Contains(t, capturedArgs, "--gid=2000")
+		assert.Contains(t, capturedArgs, "--mode=0755")
+	})
+
+	t.Run("without uid gid and mode", func(t *testing.T) {
+		var capturedArgs []string
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "info" {
+				return "", errors.New("does not exist: (2) No such file or directory")
+			}
+			if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "create" {
+				capturedArgs = args
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		}
+
+		spec := &cephv1.CephFilesystemSubVolumeGroupSpec{}
+
+		err := CreateCephFSSubVolumeGroup(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "myfs", "csi", spec)
+		assert.NoError(t, err)
+		for _, arg := range capturedArgs {
+			assert.NotContains(t, arg, "--uid")
+			assert.NotContains(t, arg, "--gid")
+			assert.NotContains(t, arg, "--mode")
+		}
+	})
+}
+
 func TestGetCephFSSubVolumeGroupInfo(t *testing.T) {
 	tests := []struct {
 		name             string

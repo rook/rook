@@ -36,6 +36,12 @@ spec:
   #quota: 10G
   # data pool name for the subvolume group layout instead of the default data pool.
   #dataPoolName: myfs-replicated
+  # uid to set on the subvolume group.
+  #uid: 1000
+  # gid to set on the subvolume group.
+  #gid: 1000
+  # Octal permissions mode to set on the subvolume group (e.g. "0755").
+  #mode: "0755"
 ```
 
 ## Settings
@@ -55,6 +61,12 @@ If any setting is unspecified, a suitable default will be used automatically.
 * `quota`: Quota size of the Ceph Filesystem subvolume group.
 
 * `dataPoolName`: The data pool name for the subvolume group layout instead of the default data pool.
+
+* `uid`: The uid to set on the subvolume group. If not specified, the default uid of the Ceph filesystem is used.
+
+* `gid`: The gid to set on the subvolume group. If not specified, the default gid of the Ceph filesystem is used.
+
+* `mode`: The octal permissions mode to set on the subvolume group (e.g. `"0755"`). Must be a 4-character octal string starting with `0`. If not specified, the default mode of the Ceph filesystem is used.
 
 * `pinning`: To distribute load across MDS ranks in predictable and stable ways. See the Ceph doc for [Pinning subvolume groups](https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups).
     * `distributed`: Range: <0, 1>, for disabling it set to 0

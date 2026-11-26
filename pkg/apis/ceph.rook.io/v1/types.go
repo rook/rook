@@ -4316,6 +4316,25 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=1024
 	CSIMetadataRadosNamespace string `json:"csiMetadataRadosNamespace,omitempty"`
+	// The uid to use for the subvolume group.
+	// If not specified, the default uid of the ceph fs is used.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65534
+	UID *int32 `json:"uid,omitempty"`
+	// The gid to use for the subvolume group.
+	// If not specified, the default gid of the ceph fs is used.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65534
+	GID *int32 `json:"gid,omitempty"`
+	// The octal permissions mode to use for the subvolume group.
+	// If not specified, the default mode of the ceph fs is used.
+	// +optional
+	// +kubebuilder:validation:MinLength=4
+	// +kubebuilder:validation:MaxLength=4
+	// +kubebuilder:validation:Pattern=`^0[0-7]{3}$`
+	Mode *string `json:"mode,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup

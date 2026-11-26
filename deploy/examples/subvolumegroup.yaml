@@ -21,6 +21,12 @@ spec:
   #quota: 10G
   # data pool name for the subvolume group layout instead of the default data pool.
   #dataPoolName: myfs-replicated
+  # uid to set on the subvolume group.
+  # uid: 1000
+  # gid to set on the subvolume group.
+  # gid: 1000
+  # Octal permissions mode to set on the subvolume group (e.g. "0755").
+  # mode: "0755"
   # ClusterID to be used for this subvolume group in the CSI configuration.
   # It must be unique among all Ceph clusters managed by Rook.
   # If not specified, the clusterID will be generated and can be found in the CR status.

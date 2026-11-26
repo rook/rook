@@ -9845,6 +9845,22 @@ spec:
                   x-kubernetes-validations:
                     - message: filesystemName is immutable
                       rule: self == oldSelf
+                gid:
+                  description: |-
+                    The gid to use for the subvolume group.
+                    If not specified, the default gid of the ceph fs is used.
+                  format: int32
+                  maximum: 65534
+                  minimum: 0
+                  type: integer
+                mode:
+                  description: |-
+                    The octal permissions mode to use for the subvolume group.
+                    If not specified, the default mode of the ceph fs is used.
+                  maxLength: 4
+                  minLength: 4
+                  pattern: ^0[0-7]{3}$
+                  type: string
                 name:
                   description: The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
                   type: string
@@ -9883,6 +9899,14 @@ spec:
                   description: Quota size of the Ceph Filesystem subvolume group.
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
+                uid:
+                  description: |-
+                    The uid to use for the subvolume group.
+                    If not specified, the default uid of the ceph fs is used.
+                  format: int32
+                  maximum: 65534
+                  minimum: 0
+                  type: integer
               required:
                 - filesystemName
               type: object
