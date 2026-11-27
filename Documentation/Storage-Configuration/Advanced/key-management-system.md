@@ -42,6 +42,19 @@ Supported KMS providers:
 
 Rook supports storing OSD encryption keys in [HashiCorp Vault KMS](https://www.vaultproject.io/).
 
+!!! warning
+    The Rook operator connects to `VAULT_ADDR` itself, for example to store OSD encryption keys,
+    and authenticates with the configured method. With `VAULT_AUTH_METHOD: kubernetes` it sends its
+    own ServiceAccount token, or the content of the file named by
+    `VAULT_AUTH_KUBERNETES_TOKEN_PATH`. Permission to edit the KMS connection details of a
+    CephCluster or CephObjectStore is therefore equivalent to the operator's identity. Use an
+    `https://` address for the Vault server and do not set `VAULT_SKIP_VERIFY`: over plain HTTP or
+    without certificate verification, that credential and the encryption keys are exposed to
+    anyone on the network path to Vault. (The pod-local Vault Agent address used with
+    `VAULT_AUTH_METHOD: agent` for object store
+    [SSE-S3](../../CRDs/Object-Storage/ceph-object-store-crd.md#sse-s3-with-vault-agent) stays
+    `http://127.0.0.1:<port>`.)
+
 ### Authentication methods
 
 Rook support two authentication methods:
@@ -242,8 +255,10 @@ data:
   cert: <PEM base64 encoded CA certificate>
 ```
 
-Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
-Communications will remain encrypted but the validity of the certificate will not be verified.
+Note: if you are using self-signed certificates (not known/approved by a proper CA), provide the
+certificate with `VAULT_CACERT` rather than passing `VAULT_SKIP_VERIFY: true`. With
+`VAULT_SKIP_VERIFY`, communications remain encrypted but the validity of the certificate is not
+verified, so anyone on the network path can impersonate Vault.
 
 ## IBM Key Protect
 

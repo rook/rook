@@ -44,6 +44,12 @@ The `CephNVMeOFGateway` CRD manages the NVMe-oF gateway infrastructure. The oper
 - **Service**: One per gateway instance for service discovery
 - **Deployment**: One per gateway instance running the NVMe-oF gateway daemon
 
+!!! warning
+    Both containers of the gateway pod run privileged with the `SYS_ADMIN` capability, and the pod
+    mounts the Ceph admin keyring. The gateway container runs the image set in `spec.image`.
+    Permission to create or edit a `CephNVMeOFGateway` is therefore equivalent to root on the node
+    and to the Ceph admin key.
+
 NVMe-oF uses two separate pools:
 
 - **Metadata pool (`.nvmeof`)**: An internal pool that stores gateway state (subsystem and namespace definitions). Created with `spec.name: .nvmeof`.

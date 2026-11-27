@@ -38,6 +38,15 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `operator-openshift.yaml` under `/deploy/examples`.
 
+!!! warning
+    The SCC for the Rook and Ceph daemons allows privileged containers, `hostPath` volumes, host
+    IPC and the `SYS_ADMIN` capability, and grants them to several Rook ServiceAccounts in the Rook
+    namespace, such as `rook-ceph-system`, `rook-ceph-default` and `rook-ceph-rgw`. OpenShift
+    admits a pod under any SCC available to the pod's ServiceAccount, so a pod that names one of
+    these ServiceAccounts can run privileged with host access, whoever created it. Permission to
+    create pods, or workloads that create pods, in a namespace whose ServiceAccounts this SCC lists
+    (`rook-ceph` by default) is therefore equivalent to cluster-admin.
+
 !!! hint
     Older versions of OpenShift may require `apiVersion: v1`.
 

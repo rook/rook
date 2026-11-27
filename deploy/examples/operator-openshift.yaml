@@ -99,7 +99,6 @@ users:
   - system:serviceaccount:rook-ceph:ceph-csi-nvmeof-nodeplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-ctrlplugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:ceph-csi-rbd-nodeplugin-sa # serviceaccount:namespace:operator
-  - system:serviceaccount:rook-ceph:nvmeof-csi-provisioner # serviceaccount:namespace:operator
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations
