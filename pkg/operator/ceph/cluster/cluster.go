@@ -604,7 +604,7 @@ func (c *cluster) postMonStartupActions(imageCephVersion cephver.CephVersion) er
 	return nil
 }
 
-// configureHealthSettings mutes the health warnings configured in the cluster spec and
+// configureHealthWarnings mutes the health warnings configured in the cluster spec and
 // disables the insecure global ID reclaim when there are no legacy clients connected.
 func (c *cluster) configureHealthWarnings() {
 	for warning, spec := range c.Spec.HealthCheck.MuteHealthWarning {
