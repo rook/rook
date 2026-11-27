@@ -57,7 +57,7 @@ func httpTopic(name, namespace string, store *cephv1.CephObjectStore, uri string
 		Spec: cephv1.BucketTopicSpec{
 			ObjectStoreName:      store.Name,
 			ObjectStoreNamespace: store.Namespace,
-			Endpoint:             cephv1.TopicEndpointSpec{HTTP: &cephv1.HTTPEndpointSpec{URI: uri}},
+			Endpoint:             cephv1.TopicEndpointSpec{HTTP: &cephv1.HTTPEndpointSpec{URI: cephv1.Sensitive(uri)}},
 		},
 	}
 }

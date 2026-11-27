@@ -37,15 +37,15 @@ func validateURI(uri string, expectedSchemas []string) error {
 }
 
 func ValidateHTTPSpec(s *HTTPEndpointSpec) error {
-	return validateURI(s.URI, []string{"http", "https"})
+	return validateURI(string(s.URI), []string{"http", "https"})
 }
 
 func ValidateAMQPSpec(s *AMQPEndpointSpec) error {
-	return validateURI(s.URI, []string{"amqp", "amqps"})
+	return validateURI(string(s.URI), []string{"amqp", "amqps"})
 }
 
 func ValidateKafkaSpec(s *KafkaEndpointSpec) error {
-	return validateURI(s.URI, []string{"kafka"})
+	return validateURI(string(s.URI), []string{"kafka"})
 }
 
 // ValidateTopicSpec validates the bucket notification topic arguments

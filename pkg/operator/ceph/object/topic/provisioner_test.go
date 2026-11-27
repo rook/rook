@@ -61,7 +61,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 				ObjectStoreNamespace: namespace,
 				Endpoint: cephv1.TopicEndpointSpec{
 					HTTP: &cephv1.HTTPEndpointSpec{
-						URI: uri,
+						URI: cephv1.Sensitive(uri),
 					},
 				},
 			},
@@ -97,7 +97,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 				ObjectStoreNamespace: namespace,
 				Endpoint: cephv1.TopicEndpointSpec{
 					AMQP: &cephv1.AMQPEndpointSpec{
-						URI:      uri,
+						URI:      cephv1.Sensitive(uri),
 						AckLevel: ackLevel,
 						Exchange: exchange,
 					},
@@ -134,7 +134,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 				ObjectStoreNamespace: namespace,
 				Endpoint: cephv1.TopicEndpointSpec{
 					AMQP: &cephv1.AMQPEndpointSpec{
-						URI:      uri,
+						URI:      cephv1.Sensitive(uri),
 						AckLevel: "routeable",
 						Exchange: exchange,
 					},
@@ -173,7 +173,7 @@ func TestTopicAttributesCreation(t *testing.T) {
 				ObjectStoreNamespace: namespace,
 				Endpoint: cephv1.TopicEndpointSpec{
 					Kafka: &cephv1.KafkaEndpointSpec{
-						URI:       uri,
+						URI:       cephv1.Sensitive(uri),
 						AckLevel:  ackLevel,
 						UseSSL:    true,
 						Mechanism: mechanism,
@@ -253,7 +253,7 @@ func TestCreateTopicAttributesRedactsAMQPEndpoint(t *testing.T) {
 		logBuf := captureLogsAtLevel(t, capnslog.INFO)
 
 		attrs, _, err := createTopicAttributes(provisioner{}, topicWithEndpoint(cephv1.TopicEndpointSpec{
-			AMQP: &cephv1.AMQPEndpointSpec{URI: uri, AckLevel: "broker", Exchange: "ex1"},
+			AMQP: &cephv1.AMQPEndpointSpec{URI: cephv1.Sensitive(uri), AckLevel: "broker", Exchange: "ex1"},
 		}))
 
 		require.NoError(t, err)
@@ -271,7 +271,7 @@ func TestCreateTopicAttributesRedactsAMQPEndpoint(t *testing.T) {
 		logBuf := captureLogsAtLevel(t, capnslog.INFO)
 
 		attrs, _, err := createTopicAttributes(provisioner{}, topicWithEndpoint(cephv1.TopicEndpointSpec{
-			AMQP: &cephv1.AMQPEndpointSpec{URI: uri, AckLevel: "broker", Exchange: "ex1"},
+			AMQP: &cephv1.AMQPEndpointSpec{URI: cephv1.Sensitive(uri), AckLevel: "broker", Exchange: "ex1"},
 		}))
 
 		// an endpoint rook cannot parse is still sent to the RGW, which validates it
@@ -293,7 +293,7 @@ func TestCreateTopicAttributesRedactsHTTPEndpoint(t *testing.T) {
 		logBuf := captureLogsAtLevel(t, capnslog.INFO)
 
 		attrs, _, err := createTopicAttributes(provisioner{}, topicWithEndpoint(cephv1.TopicEndpointSpec{
-			HTTP: &cephv1.HTTPEndpointSpec{URI: uri},
+			HTTP: &cephv1.HTTPEndpointSpec{URI: cephv1.Sensitive(uri)},
 		}))
 
 		require.NoError(t, err)
@@ -309,7 +309,7 @@ func TestCreateTopicAttributesRedactsHTTPEndpoint(t *testing.T) {
 		logBuf := captureLogsAtLevel(t, capnslog.INFO)
 
 		attrs, _, err := createTopicAttributes(provisioner{}, topicWithEndpoint(cephv1.TopicEndpointSpec{
-			HTTP: &cephv1.HTTPEndpointSpec{URI: uri},
+			HTTP: &cephv1.HTTPEndpointSpec{URI: cephv1.Sensitive(uri)},
 		}))
 
 		// an endpoint rook cannot parse is still sent to the RGW, which validates it
@@ -329,7 +329,7 @@ func TestCreateTopicAttributesKafkaParseFailureOmitsURI(t *testing.T) {
 	uri := "kafka://topic-user:" + examplePassword + "@my-kafka-service:9092\x7f"
 
 	_, _, err := createTopicAttributes(provisioner{}, topicWithEndpoint(cephv1.TopicEndpointSpec{
-		Kafka: &cephv1.KafkaEndpointSpec{URI: uri, AckLevel: "broker"},
+		Kafka: &cephv1.KafkaEndpointSpec{URI: cephv1.Sensitive(uri), AckLevel: "broker"},
 	}))
 
 	require.Error(t, err)
