@@ -694,7 +694,8 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 	}
 
 	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the logging happens
-	// instead of using the default buffering that will log everything after ceph-volume exits
+	// instead of using the default buffering that will log everything after ceph-volume exits. That holds for
+	// the reports only: the output of a prepare is captured, so that it is redacted before it is logged.
 	baseCommand := "stdbuf"
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath, "lvm", "batch", "--prepare", storeFlag, "--yes"}
 	if a.storeConfig.EncryptedDevice {
@@ -845,7 +846,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				}
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
-				if err := context.Executor.ExecuteCommand(baseCommand, immediateExecuteArgs...); err != nil {
+				if err := runLVMPrepare(context, baseCommand, immediateExecuteArgs...); err != nil {
 					cvLog := readCVLogContent(filepath.Join(cephVolumeTmpLogDir, "ceph-volume.log"))
 					if cvLog != "" {
 						logger.Errorf("%s", cvLog)
@@ -974,12 +975,24 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 		}
 
 		// execute ceph-volume batching up multiple devices
-		if err := context.Executor.ExecuteCommand(baseCommand, mdArgs...); err != nil {
+		if err := runLVMPrepare(context, baseCommand, mdArgs...); err != nil {
 			return errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 		}
 	}
 
 	return nil
+}
+
+// runLVMPrepare runs a ceph-volume prepare and logs its output when it exits, whether or not it
+// failed. ExecuteCommand would stream the output to the log as it is written, and ceph-volume echoes
+// the output of a command that fails, which can carry a secret.
+func runLVMPrepare(context *clusterd.Context, command string, args ...string) error {
+	op, err := context.Executor.ExecuteCommandWithCombinedOutput(command, args...)
+	if op != "" {
+		logger.Infof("%s", redactCephVolumeOutput(op))
+	}
+
+	return err
 }
 
 // findDeviceClass returns the CR-declared deviceClass for the OSD, or "" if not found.

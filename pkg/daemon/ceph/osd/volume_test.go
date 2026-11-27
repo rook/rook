@@ -832,6 +832,7 @@ func TestInitializeBlock(t *testing.T) {
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed default behavior test")
 		logger.Info("success, go to next test")
@@ -864,6 +865,7 @@ func TestInitializeBlock(t *testing.T) {
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: true, StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed encryption test")
 		logger.Info("success, go to next test")
@@ -907,6 +909,7 @@ func TestInitializeBlock(t *testing.T) {
 			a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: globalEncryption, StoreType: "bluestore"}}
 			context := &clusterd.Context{Executor: executor}
 
+			forwardCombinedOutput(executor)
 			err := a.initializeDevicesLVMMode(context, devices)
 			assert.NoError(t, err, "failed per-device encryption test, global encryption %t", globalEncryption)
 		}
@@ -961,6 +964,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed per-device encryption with metadata device test")
 		logger.Info("success, go to next test")
@@ -984,6 +988,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.ErrorContains(t, err, "has more than 1 encryptedDevice value set")
 		logger.Info("success, go to next test")
@@ -1022,6 +1027,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed per-device encryption with metadata partition device test")
 		logger.Info("success, go to next test")
@@ -1054,6 +1060,7 @@ func TestInitializeBlock(t *testing.T) {
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{OSDsPerDevice: 3, StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed multiple osd test")
 		logger.Info("success, go to next test")
@@ -1085,6 +1092,7 @@ func TestInitializeBlock(t *testing.T) {
 		}
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{DeviceClass: "hybrid", StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed crush device class test")
 		logger.Info("success, go to next test")
@@ -1145,6 +1153,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata test")
@@ -1208,6 +1217,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata test")
@@ -1278,6 +1288,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata test")
@@ -1319,6 +1330,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata test")
@@ -1379,6 +1391,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata test")
@@ -1453,6 +1466,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata device by-id test")
@@ -1505,6 +1519,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata partition device by-id test")
@@ -1592,6 +1607,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := agent.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed metadata device by-path test")
 		logger.Info("success, go to next test")
@@ -1654,6 +1670,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := agent.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed metadata device by-path test")
 		logger.Info("success, go to next test")
@@ -1715,6 +1732,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := agent.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed metadata device lvm test")
 		logger.Info("success, go to next test")
@@ -1761,6 +1779,7 @@ func TestInitializeBlock(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := agent.initializeDevicesLVMMode(context, devices)
 		assert.Error(t, err, "metadata device by-path is not found")
 		logger.Info("success, go to next test")
@@ -2418,6 +2437,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed default behavior test")
 	}
@@ -2461,6 +2481,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed LV as metadataDevice test")
 	}
@@ -2513,6 +2534,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 			},
 		}
 
+		forwardCombinedOutput(executor)
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed LV as metadataDevice test")
 	}
@@ -2569,14 +2591,15 @@ func TestInitializeDevicesPerDeviceEncryption(t *testing.T) {
 			rawPrepared = append(rawPrepared, args)
 			return "", nil
 		}
+		if slices.Contains(args, "lvm") && slices.Contains(args, "batch") && !slices.Contains(args, "--report") {
+			lvmPrepared = append(lvmPrepared, args)
+			return "", nil
+		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 	executor.MockExecuteCommand = func(command string, args ...string) error {
 		logger.Infof("%s %v", command, args)
-		if slices.Contains(args, "lvm") && slices.Contains(args, "batch") {
-			if !slices.Contains(args, "--report") {
-				lvmPrepared = append(lvmPrepared, args)
-			}
+		if slices.Contains(args, "lvm") && slices.Contains(args, "batch") && slices.Contains(args, "--report") {
 			return nil
 		}
 		return errors.Errorf("unknown command %s %s", command, args)
@@ -3039,4 +3062,78 @@ scan = [ "/dev" ]
 		require.NoError(t, err)
 		assert.Contains(t, string(output), `filter = [ "a|^/mnt/.*|", "r|^/dev/loop.*|", "r|^/dev/rbd.*|", "a|^/dev/.*|", "r|.*|" ]`)
 	})
+}
+
+// forwardCombinedOutput sends a prepare, which is run for its combined output, to the executor's
+// MockExecuteCommand, where the LVM mode tests validate the arguments of every ceph-volume call
+func forwardCombinedOutput(executor *exectest.MockExecutor) {
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		return "", executor.ExecuteCommand(command, args...)
+	}
+}
+
+func TestInitializeDevicesLVMModeRedactsPrepareOutput(t *testing.T) {
+	// ceph-volume echoes the output of a command that fails, so its output is not guaranteed to be
+	// free of secrets. The lv_tags line stands for any that reach it.
+	const lockboxSecret = "EXAMPLELOCKBOXSECRET00000000000000000004"
+	prepareOutput := "--> Zapping: /dev/ceph-vg/osd-block-1\n stdout: ceph.cephx_lockbox_secret=" + lockboxSecret + ",ceph.osd_id=1\n"
+
+	layouts := []struct {
+		name    string
+		devices *DeviceOsdMapping
+		context *clusterd.Context
+	}{
+		{
+			name: "device",
+			devices: &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Config: DesiredDevice{Name: "/dev/sda"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			}},
+			context: &clusterd.Context{},
+		},
+		{
+			name: "device with a metadata partition",
+			devices: &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.DiskType}},
+			}},
+			context: &clusterd.Context{Devices: []*sys.LocalDisk{{Name: "sdb1", Type: sys.PartType}}},
+		},
+	}
+	outcomes := []struct {
+		name       string
+		prepareErr error
+	}{
+		{name: "success"},
+		{name: "failure", prepareErr: errors.New("exit status 1")},
+	}
+
+	for _, layout := range layouts {
+		for _, outcome := range outcomes {
+			t.Run(layout.name+" "+outcome.name, func(t *testing.T) {
+				origLogDir := cephVolumeTmpLogDir
+				cephVolumeTmpLogDir = t.TempDir()
+				t.Cleanup(func() { cephVolumeTmpLogDir = origLogDir })
+
+				executor := &exectest.MockExecutor{}
+				executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+					return prepareOutput, outcome.prepareErr
+				}
+				layout.context.Executor = executor
+				a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+				logBuf := captureLogsAtLevel(t, capnslog.INFO)
+
+				err := a.initializeDevicesLVMMode(layout.context, layout.devices)
+
+				if outcome.prepareErr != nil {
+					require.Error(t, err)
+					assert.NotContains(t, err.Error(), lockboxSecret)
+				} else {
+					require.NoError(t, err)
+				}
+				logOutput := logBuf.String()
+				assert.NotContains(t, logOutput, lockboxSecret)
+				// the output is still printed, masked rather than withheld
+				assert.Contains(t, logOutput, "ceph.cephx_lockbox_secret=*****,ceph.osd_id=1")
+			})
+		}
+	}
 }
