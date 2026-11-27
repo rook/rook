@@ -111,3 +111,92 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 	err := CreateErasureCodeProfile(context, AdminTestClusterInfo("mycluster"), "myapp", spec)
 	assert.Nil(t, err)
 }
+
+func TestCreateProfileTechnique(t *testing.T) {
+	var plugin, technique string
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "erasure-code-profile" {
+			if args[2] == "get" {
+				assert.Equal(t, "default", args[3])
+				return `{"plugin":"myplugin","technique":"t"}`, nil
+			}
+			if args[2] == "set" {
+				assert.Equal(t, "myapp", args[3])
+				assert.Equal(t, "k=8", args[5])
+				assert.Equal(t, "m=6", args[6])
+				plugin = args[7]
+				technique = args[8]
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	createProfile := func(algorithm, ecTechnique string) {
+		plugin, technique = "", ""
+		spec := cephv1.PoolSpec{
+			ErasureCoded: cephv1.ErasureCodedSpec{
+				DataChunks:   8,
+				CodingChunks: 6,
+				Algorithm:    algorithm,
+				Technique:    ecTechnique,
+			},
+		}
+		err := CreateErasureCodeProfile(context, AdminTestClusterInfo("mycluster"), "myapp", spec)
+		assert.NoError(t, err)
+	}
+
+	t.Run("technique from the default profile when not set", func(t *testing.T) {
+		createProfile("", "")
+		assert.Equal(t, "plugin=myplugin", plugin)
+		assert.Equal(t, "technique=t", technique)
+	})
+
+	t.Run("technique set", func(t *testing.T) {
+		createProfile("", "cauchy")
+		assert.Equal(t, "plugin=myplugin", plugin)
+		assert.Equal(t, "technique=cauchy", technique)
+	})
+
+	t.Run("algorithm set without technique", func(t *testing.T) {
+		createProfile("isa", "")
+		assert.Equal(t, "plugin=isa", plugin)
+		assert.Equal(t, "technique=t", technique)
+	})
+
+	t.Run("algorithm and technique set", func(t *testing.T) {
+		createProfile("isa", "cauchy")
+		assert.Equal(t, "plugin=isa", plugin)
+		assert.Equal(t, "technique=cauchy", technique)
+	})
+}
+
+// Rook sets the profile of an existing pool on every reconcile. Ceph refuses to change a profile
+// that differs from the existing one unless --yes-i-really-mean-it is passed as well as --force, so
+// changing the technique of an existing pool fails the reconcile instead of rewriting its profile.
+func TestCreateProfileChangedOnExistingPool(t *testing.T) {
+	var setArgs []string
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if args[1] == "erasure-code-profile" {
+			if args[2] == "get" {
+				return `{"plugin":"isa","technique":"reed_sol_van"}`, nil
+			}
+			if args[2] == "set" {
+				setArgs = args
+				return "", errors.New("Error EPERM: overriding erasure code profile can be DANGEROUS; add --yes-i-really-mean-it to do it anyway")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	spec := cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{DataChunks: 2, CodingChunks: 1, Technique: "cauchy"}}
+	err := CreateErasureCodeProfile(context, AdminTestClusterInfo("mycluster"), "mypool_ecprofile", spec)
+	assert.ErrorContains(t, err, "failed to set ec-profile")
+	assert.Contains(t, setArgs, "--force")
+	assert.NotContains(t, setArgs, "--yes-i-really-mean-it")
+}
