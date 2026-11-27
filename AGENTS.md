@@ -20,6 +20,7 @@ Read the relevant section of the
 | write a commit message | [Commit structure](Documentation/Contributing/development-flow.md#commit-structure) |
 | fill in the pull request checklist | [the pull request template](.github/PULL_REQUEST_TEMPLATE.md), which says what each item claims |
 | write tests | [Assertions](Documentation/Contributing/rook-test-framework.md#assertions) |
+| tell which inputs to Rook are administrative | [Access Control for Rook Resources](design/ceph/access-control.md) |
 
 Two of these are easy to miss. Building or testing with a bare `go` command does not necessarily
 match what CI runs, so use `make`. Changing a godoc comment under `pkg/apis` counts as changing the
