@@ -5,4 +5,5 @@ nav:
     - ceph-osd-mgmt.md
     - ceph-mon-health.md
     - cephx-key-rotation.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

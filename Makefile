@@ -351,11 +351,11 @@ helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm cha
 		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
 		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
 
-docs-preview: ## Preview the documentation through mkdocs
-	mkdocs serve
+docs-preview: ## Preview the documentation through zensical
+	zensical serve
 
 docs-build:  ## Build the documentation to the `site/` directory
-	mkdocs build --strict
+	zensical build --clean --strict
 
 .PHONY: gen.crd-docs
 gen.crd-docs: generate-docs-crds

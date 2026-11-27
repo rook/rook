@@ -5,4 +5,5 @@ nav:
     - ceph-csi-volume-group-snapshot.md
     - ceph-csi-volume-clone.md
     - custom-images.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

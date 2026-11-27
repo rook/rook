@@ -3,7 +3,7 @@ const body_tab_space_indent = 4
 
 module.exports = {
   "names": [ "mkdocs-admonitions" ],
-  "description": "Enforce mkdocs admonitions are formatted properly",
+  "description": "Enforce Zensical admonitions are formatted properly",
   "tags": [ "test" ],
   "parser": "none",
   "function": function rule(params, onError) {

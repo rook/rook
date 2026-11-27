@@ -1,4 +1,5 @@
 nav:
     - ceph-dashboard.md
     - ceph-monitoring.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

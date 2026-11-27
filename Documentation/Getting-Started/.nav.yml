@@ -8,4 +8,5 @@ nav:
     - ceph-openshift.md
     - ceph-teardown.md
     - maintenance-and-support.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

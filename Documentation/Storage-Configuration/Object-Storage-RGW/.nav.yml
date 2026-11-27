@@ -1,4 +1,5 @@
 title: Object Storage (RGW)
 nav:
     - object-storage.md
-    - ...
+    - glob: "*"
+      ignore_no_matches: true

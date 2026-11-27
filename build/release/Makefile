@@ -88,17 +88,20 @@ deps.docs:
 	pip3 install -r requirements_docs.txt
 
 build.docs: deps.docs
-	# Build the docs once before they are published to ensure they are correctly building
-	cd $(ROOT_DIR) && mkdocs build --strict
+	cd $(ROOT_DIR) && zensical build --clean --strict
+	# on release branches, point the links to files in the rook repo at the branch instead of master
+	if [ "$(BRANCH_NAME)" != master ]; then \
+		find $(ROOT_DIR)/site -name '*.html' -exec perl -pi -e 's#(github\.com/rook/rook/(?:blob|tree)/)master/#$${1}$(BRANCH_NAME)/#g' {} + ; \
+	fi
 
-publish.docs:
+publish.docs: build.docs
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
-	# a concurrent build can push gh-pages between our fetch and mike's push,
+	# a concurrent build can push gh-pages between our fetch and our push,
 	# getting the push rejected as non-fast-forward; reset the local branch to
 	# the remote tip and redeploy when that happens
 	cd $(ROOT_DIR) && for attempt in 1 2 3; do \
 		git fetch --force --update-head-ok docs gh-pages:gh-pages && \
-		mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS) && \
+		build/release/publish-docs.sh --push docs --branch gh-pages --prefix $(DOCS_PREFIX) site $(DOCS_VERSION) $(DOCS_VERSION_ALIAS) && \
 		exit 0; \
 		echo "docs deploy attempt $$attempt failed"; \
 		sleep 15; \
