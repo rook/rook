@@ -6,9 +6,10 @@ RBD Quality of Service (QoS) allows administrators to set IOPS and bandwidth lim
 RBD block volumes. This prevents noisy-neighbor issues in multi-tenant clusters by ensuring
 that no single workload can saturate the storage cluster's I/O capacity.
 
-QoS is configured through a `VolumeAttributesClass` resource, which allows dynamic
-modification of QoS limits on existing volumes without recreation using the
-`ControllerModifyVolume` CSI operation.
+QoS is configured through a `VolumeAttributesClass` resource. The QoS limits of an
+existing volume can be changed without recreating it, by switching its PVC to another
+`VolumeAttributesClass` (the `ControllerModifyVolume` CSI operation). With krbd, the new
+limits apply to a pod when it is restarted.
 
 ## Supported Mounters
 
@@ -87,6 +88,11 @@ For new Rook Ceph deployments, follow these steps to enable QoS.
     ```console
     kubectl patch pvc rbd-pvc-qos -p '{"spec":{"volumeAttributesClassName":"rook-ceph-rbd-cgroup-qos"}}'
     ```
+
+    !!! note
+        The new limits are stored right away, but a running pod keeps its old limits until it is
+        restarted: Ceph-CSI writes the pod's cgroup `io.max` only when the volume is published to
+        the pod. Editing a `VolumeAttributesClass` itself does not change existing volumes.
 
     !!! note
         A single pod can have multiple volumes with different QoS limits by using different VolumeAttributesClasses for each PVC.
