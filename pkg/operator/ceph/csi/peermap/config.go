@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -151,6 +152,15 @@ func ReconcilePoolIDMap(ctx context.Context, clusterContext *clusterd.Context, c
 	err = CreateOrUpdateConfig(ctx, clusterContext, mappings)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update peer pool ID mappings configMap for the pool %q", pool.Name)
+	}
+
+	if opcontroller.CSIOperatorResourcesEnabled() {
+		err = reconcileClientProfileMapping(ctx, clusterContext.Client, clusterInfo.Namespace, pool.Name, mappings)
+		if err != nil {
+			return errors.Wrapf(err, "failed to reconcile clientProfileMapping for the pool %q", pool.Name)
+		}
+	} else if err := DeleteClientProfileMapping(ctx, clusterContext.Client, clusterInfo.Namespace, pool.Name); err != nil {
+		return err
 	}
 
 	logger.Infof("successfully updated config map with cluster and RDB pool ID mappings for the pool %q", pool.Name)
