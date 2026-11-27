@@ -44,6 +44,15 @@ func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 		if svgSpec.DataPoolName != "" {
 			args = append(args, fmt.Sprintf("--pool_layout=%s", svgSpec.DataPoolName))
 		}
+		if svgSpec.UID != nil {
+			args = append(args, fmt.Sprintf("--uid=%d", *svgSpec.UID))
+		}
+		if svgSpec.GID != nil {
+			args = append(args, fmt.Sprintf("--gid=%d", *svgSpec.GID))
+		}
+		if svgSpec.Mode != nil {
+			args = append(args, fmt.Sprintf("--mode=%s", *svgSpec.Mode))
+		}
 	}
 
 	svgInfo, err := getCephFSSubVolumeGroupInfo(context, clusterInfo, volName, groupName)

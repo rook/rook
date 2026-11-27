@@ -1390,6 +1390,21 @@ func (in *CephFilesystemSubVolumeGroupSpec) DeepCopyInto(out *CephFilesystemSubV
 		x := (*in).DeepCopy()
 		*out = &x
 	}
+	if in.UID != nil {
+		in, out := &in.UID, &out.UID
+		*out = new(int32)
+		**out = **in
+	}
+	if in.GID != nil {
+		in, out := &in.GID, &out.GID
+		*out = new(int32)
+		**out = **in
+	}
+	if in.Mode != nil {
+		in, out := &in.Mode, &out.Mode
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

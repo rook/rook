@@ -1594,6 +1594,45 @@ string
 If not specified the default of the ceph-csi driver is used.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>uid</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The uid to use for the subvolume group.
+If not specified, the default uid of the ceph fs is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gid</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The gid to use for the subvolume group.
+If not specified, the default gid of the ceph fs is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The octal permissions mode to use for the subvolume group.
+If not specified, the default mode of the ceph fs is used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -4609,6 +4648,45 @@ string
 <em>(Optional)</em>
 <p>The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
 If not specified the default of the ceph-csi driver is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>uid</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The uid to use for the subvolume group.
+If not specified, the default uid of the ceph fs is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gid</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The gid to use for the subvolume group.
+If not specified, the default gid of the ceph fs is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The octal permissions mode to use for the subvolume group.
+If not specified, the default mode of the ceph fs is used.</p>
 </td>
 </tr>
 </tbody>
