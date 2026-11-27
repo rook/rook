@@ -66,6 +66,8 @@ There is an environment variable that needs to be set in the operator spec that 
   value: "true"
 ```
 
+The CSI `OperatorConfig` must also set `nodePlugin.enableSeLinuxHostMount: true` so that the CSI node plugin applies SELinux mount labels on SELinux-enforcing nodes. `operator-openshift.yaml` sets this by default. See [Node plugin kubelet path and SELinux host mount](../Storage-Configuration/Ceph-CSI/csi-configuration.md#node-plugin-kubelet-path-and-selinux-host-mount).
+
 Now create the security context constraints and the operator:
 
 ```console
