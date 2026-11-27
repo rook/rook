@@ -46,6 +46,8 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/operator.yaml"
+        kubectl -n rook-ceph patch configmap rook-csi-operator-image-set-configmap \
+          --type merge -p '{"data":{"plugin":"quay.io/cephcsi/cephcsi:canary"}}'
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build "deploy/examples/csi/nvmeof/driver.yaml"
 
         BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
