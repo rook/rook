@@ -1460,9 +1460,15 @@ func (k8sh *K8sHelper) getPodsLogs(pods *v1.PodList, namespace, testName, platfo
 	}
 }
 
-func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName, suffix string) (*os.File, error) {
+// TestOutputDir is the directory that collects the logs and other artifacts a
+// test writes, under the working directory.
+func TestOutputDir() string {
 	dir, _ := os.Getwd()
-	logDir := path.Join(dir, "_output/tests/")
+	return path.Join(dir, "_output/tests/")
+}
+
+func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName, suffix string) (*os.File, error) {
+	logDir := TestOutputDir()
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
 		err := os.MkdirAll(logDir, 0o777)
 		if err != nil {

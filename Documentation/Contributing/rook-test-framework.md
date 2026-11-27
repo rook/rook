@@ -89,6 +89,52 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 !!! info
     Only the golang test suites are documented to run locally. Canary and other tests have only ever been supported in the CI.
 
+## Leak guard
+
+From the install of Rook, the leak guard follows every container log and captures the pod specs in
+the suite's namespaces, and in the namespaces the object tests create. It keeps the value of each key of
+every Kubernetes Secret it sees, except short values and keys that are identifiers by design (see
+below), and reads the cephx keys from the toolbox before the teardown.
+After the uninstall it scans everything captured for those values (exact match) and for credential
+patterns (with [betterleaks](https://github.com/betterleaks/betterleaks)).
+
+An exact-match finding fails the test, unless `LEAK_GUARD_MODE=report` is set, which only reports
+it. Pattern findings are only reported. The test fails in either mode if the guard captured no
+container log, collected no secret from the cluster, found no cephx keys in the toolbox of a
+namespace, or hit an error.
+
+The evidence is under `tests/integration/_output/tests/leakguard-<test>/`, which CI uploads as the
+job artifact on failure:
+
+* `logs/`, `specs/` and `snapshots/` hold what was captured.
+* `findings.txt` lists every finding.
+
+The report in the test log groups the findings by secret and shows a few locations of each.
+Neither the report nor `findings.txt` prints a secret value, only the name of the secret, or the
+name of the rule for a pattern finding, and the `file:line` of the finding.
+
+When the test had otherwise passed, a leak fails it after the uninstall, so the cluster is already
+torn down and the usual failure-time log gathering finds nothing of it. When the test had already
+failed, the uninstall skips the teardown and leaves the cluster as it is, and the guard still checks
+what it captured. Either way the `leakguard-<test>/` directory is the evidence. A `go test -timeout`
+that expires during the teardown loses the verdict.
+
+To investigate a finding, open the named file at the named line and decide whether the value is
+really a secret or an identifier. A value that is public by design, such as the cluster FSID, or
+that only identifies a credential, such as an S3 access key ID, is listed in `k8sSecretKeysSkipped`
+in [sources.go](https://github.com/rook/rook/blob/master/tests/framework/leakguard/sources.go).
+That list applies to the key in every Secret, so read its comment before adding to it.
+
+A real leak that the change exposing it cannot fix, such as one in Ceph, can be listed as a known
+leak in `knownLeaks` in
+[known_leaks.go](https://github.com/rook/rook/blob/master/tests/framework/installer/known_leaks.go).
+An entry matches a finding by the name of the secret, the file, and constant text on the line. Its
+findings do not fail the test, but the report and `findings.txt` still list them under the entry's
+name and reason. The report also lists each entry that matched nothing in that test as unused. A
+suite that never exercises an entry's leak, such as one without RGW users or keystone, lists it as
+unused on every run, so an entry is stale only once no suite uses it; remove it then. A new entry
+must name the leak it covers and say in its reason where the leak comes from.
+
 ## Assertions
 
 The tests use [testify](https://github.com/stretchr/testify), which offers two families of checks.

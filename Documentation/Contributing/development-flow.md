@@ -232,7 +232,7 @@ Every one of them can be run locally, and doing so before pushing saves a full C
 
 | Check | Run it locally | Applies to |
 | ----- | -------------- | ---------- |
-| Unit tests | `make test` | Go changes under `cmd/` and `pkg/` |
+| Unit tests | `make test` | Go changes under `cmd/`, `pkg/`, `build/` and `tests/framework/` |
 | Go linters | `make golangci-lint` | any Go change |
 | Generated client and deepcopy code | `make codegen` | any change under `pkg/apis` |
 | CRD manifests and reference docs | `make crds` | any change under `pkg/apis` |
@@ -245,9 +245,9 @@ Every one of them can be run locally, and doing so before pushing saves a full C
     runs. Run `make help` to see all targets.
 
 !!! note
-    `make test` only runs the unit tests under `cmd/` and `pkg/` (the `GO_SUBDIRS`). Test files
-    elsewhere, such as under `tests/framework/`, are compiled by the linters but are never run by
-    the unit test CI.
+    `make test` runs the unit tests under `cmd/`, `pkg/`, `build/` and `tests/framework/` (the
+    `GO_SUBDIRS`). The integration suites under `tests/integration/` are compiled by the linters but
+    are never run by the unit test CI.
 
 ## Unit Tests
 

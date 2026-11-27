@@ -1,0 +1,10 @@
+title = "rook leak guard"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "rook-cephx-key"
+description = "A Ceph cephx key."
+regex = '''\bAQ[A-Za-z0-9+/]{36}==|\bAg[A-Za-z0-9+/]{57}='''
+keywords = ["AQ", "Ag"]
