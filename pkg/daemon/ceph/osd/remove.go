@@ -467,10 +467,10 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	logger.Infof("zap OSD.%d path %q", osdInfo.ID, osdInfo.BlockPath)
 	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", osdInfo.BlockPath, "--destroy")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, osdInfo.BlockPath, output)
+		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, osdInfo.BlockPath, redactCephVolumeOutput(output))
 	}
 
-	logger.Infof("%s\n", output)
+	logger.Infof("%s\n", redactCephVolumeOutput(output))
 	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, osdInfo.BlockPath)
 
 	return osdInfo, nil

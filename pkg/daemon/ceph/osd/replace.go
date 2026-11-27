@@ -387,12 +387,12 @@ func (a *OsdAgent) provisionReplacedOSD(context *clusterd.Context, osdID int, en
 		if cvLog != "" {
 			logger.Errorf("%s", cvLog)
 		}
-		return errors.Wrapf(err, "failed to run ceph-volume prepare for replacement osd.%d. %s", osdID, op)
+		return errors.Wrapf(err, "failed to run ceph-volume prepare for replacement osd.%d. %s", osdID, redactCephVolumeOutput(op))
 	}
 	if cvLog != "" {
 		logger.Infof("%s", cvLog)
 	}
-	logger.Infof("%v", op)
+	logger.Infof("%v", redactCephVolumeOutput(op))
 
 	return nil
 }
