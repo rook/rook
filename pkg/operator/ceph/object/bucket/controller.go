@@ -37,6 +37,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/events"
 )
 
 const (
@@ -50,6 +51,7 @@ type ReconcileBucket struct {
 	clusterInfo      *cephclient.ClusterInfo
 	opConfig         opcontroller.OperatorConfig
 	opManagerContext context.Context
+	recorder         events.EventRecorder
 }
 
 // Add creates a new Ceph CSI Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -69,6 +71,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opConfig:         opConfig,
 		opManagerContext: opManagerContext,
+		recorder:         mgr.GetEventRecorder(controllerName),
 	}
 }
 
@@ -159,7 +162,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	r.clusterInfo = clusterInfo
 
 	// Start the object bucket provisioner
-	bucketProvisioner := NewProvisioner(r.context, clusterInfo)
+	bucketProvisioner := NewProvisioner(r.context, clusterInfo, r.recorder)
 	// If cluster is external, pass down the user to the bucket controller
 
 	// note: the error return below is ignored and is expected to be removed from the
