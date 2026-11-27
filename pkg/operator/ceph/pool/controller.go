@@ -559,7 +559,7 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	}
 	// create the pool
 	log.NamedInfo(nsName, logger, "creating pool")
-	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, p); err != nil {
+	if err := cephclient.CreatePoolWithPGs(context, clusterInfo, clusterSpec, p, cephclient.DefaultDataPoolPGCount); err != nil {
 		return errors.Wrapf(err, "failed to configure pool %q", p.Name)
 	}
 

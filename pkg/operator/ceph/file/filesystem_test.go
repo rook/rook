@@ -138,7 +138,7 @@ func isBasePoolOperation(fsName, command string, args []string) bool {
 		return true
 	} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-metadata", "size", "1"}) {
 		return true
-	} else if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", fsName + "-data0", "0", "replicated", fsName + "-data0"}) {
+	} else if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", fsName + "-data0", "32", "replicated", fsName + "-data0"}) {
 		return true
 	} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data0"}) {
 		return true
