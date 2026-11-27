@@ -164,7 +164,7 @@ spec:
 
 1. use `env:` if mapping of the defined key names to the env var names used by the app is needed.
 2. makes available to the pod as env variables: `BUCKET_HOST`, `BUCKET_PORT`, `BUCKET_NAME`
-3. makes available to the pod as env variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+3. makes available to the pod as env variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, unless the `StorageClass` sets `skipCredentialsSecret: "true"`
 
 ### StorageClass
 
@@ -180,7 +180,8 @@ parameters: [3]
   objectStoreName: my-store
   objectStoreNamespace: rook-ceph
   bucketName: ceph-bucket [4]
-reclaimPolicy: Delete [5]
+  skipCredentialsSecret: "false" [5]
+reclaimPolicy: Delete [6]
 ```
 
 1. `label`(optional) here associates this `StorageClass` to a specific provisioner.
@@ -188,7 +189,8 @@ reclaimPolicy: Delete [5]
 3. **all** `parameter` required.
 4. `bucketName` is required for access to existing buckets but is omitted when provisioning new buckets.
     Unlike greenfield provisioning, the brownfield bucket name appears in the `StorageClass`, not the `OBC`.
-5. rook-ceph provisioner decides how to treat the `reclaimPolicy` when an `OBC` is deleted for the bucket. See explanation as [specified in Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain)
+5. `skipCredentialsSecret` (optional): when `"true"`, no `Secret` with the bucket owner's access keys is created for `OBCs` of this `StorageClass`. The `ConfigMap` is still created.
+6. rook-ceph provisioner decides how to treat the `reclaimPolicy` when an `OBC` is deleted for the bucket. See explanation as [specified in Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain)
 
     * _Delete_ = physically delete the bucket.
     * _Retain_ = do not physically delete the bucket.
