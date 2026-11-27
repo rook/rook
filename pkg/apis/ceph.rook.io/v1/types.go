@@ -4080,7 +4080,11 @@ type StorageScopeSpec struct {
 	// Ceph may report OSDs outside the failure domain of the OSD being updated as ok-to-stop;
 	// setting this restricts each batch of updates to OSDs within a single bucket of this type.
 	// If an OSD has no bucket of this type above it in the CRUSH tree, it is updated on its own.
-	// If unset, all OSDs reported as ok-to-stop are updated together.
+	// If unset, the minimum failure domain of the pools defined by CephBlockPools, CephFilesystems
+	// and CephObjectStores is used, which is also the failure domain that the OSD PDBs allow to be
+	// disrupted, with "osd" counted as "host"; OSDs not in a single bucket of that type are then
+	// only updated with the OSDs on their host.
+	// Set it to "root" to only restrict each batch to a single CRUSH root.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +optional
