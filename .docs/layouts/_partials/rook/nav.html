@@ -1,0 +1,63 @@
+{{- /*
+  Builds the navigation tree of a directory of Documentation/, ordered as the `.pages` files
+  (awesome-pages format) say:
+
+    title: Section title     # optional, defaults to the directory name
+    nav:                     # optional, defaults to all entries sorted by name
+      - page.md
+      - Subdirectory
+      - ...                  # all entries not listed, sorted by name
+
+  @context {string} the directory relative to Documentation/ with a trailing slash, "" for the root
+  @returns {dict} "title": string, "items": slice of dict "name", "title", and either "page" (a
+    page) or "items" (a subdirectory)
+*/ -}}
+{{- $dir := . -}}
+
+{{- /* collect the pages and subdirectories of $dir */ -}}
+{{- $entries := slice -}}
+{{- $subdirs := slice -}}
+{{- range site.RegularPages -}}
+  {{- if or .Params.redirect (not .File) -}}{{- continue -}}{{- end -}}
+  {{- $fileDir := replace .File.Dir "\\" "/" -}}
+  {{- if eq $fileDir $dir -}}
+    {{- $entries = $entries | append (dict "name" .File.LogicalName "title" .LinkTitle "page" .) -}}
+  {{- else if hasPrefix $fileDir $dir -}}
+    {{- $subdirs = $subdirs | append (index (split (strings.TrimPrefix $dir $fileDir) "/") 0) -}}
+  {{- end -}}
+{{- end -}}
+{{- range uniq $subdirs -}}
+  {{- $sub := printf "%s%s/" $dir . -}}
+  {{- $entries = $entries | append (merge (partialCached "rook/nav.html" $sub $sub) (dict "name" .)) -}}
+{{- end -}}
+
+{{- $config := dict -}}
+{{- with resources.Get (printf "nav/%s.pages" $dir) -}}
+  {{- $config = .Content | transform.Unmarshal -}}
+{{- end -}}
+{{- $order := $config.nav | default (slice "...") -}}
+
+{{- $listed := slice -}}
+{{- range $order -}}
+  {{- if ne . "..." -}}
+    {{- if not (where $entries "name" .) -}}
+      {{- warnf "Documentation/%s.pages: %q does not exist" $dir . -}}
+    {{- end -}}
+    {{- $listed = $listed | append . -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $items := slice -}}
+{{- range $order -}}
+  {{- if eq . "..." -}}
+    {{- range sort $entries "name" -}}
+      {{- if not (in $listed .name) -}}{{- $items = $items | append . -}}{{- end -}}
+    {{- end -}}
+  {{- else -}}
+    {{- range where $entries "name" . -}}{{- $items = $items | append . -}}{{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $name := path.Base (strings.TrimSuffix "/" $dir) -}}
+{{- $title := $config.title | default (strings.FirstUpper (replace (replace $name "-" " ") "_" " ")) -}}
+{{- return dict "title" $title "items" $items -}}

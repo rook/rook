@@ -2,19 +2,34 @@
 title: Documentation
 ---
 
-We are using [MkDocs](https://www.mkdocs.org/) with the [Material for MkDocs theme](https://squidfunk.github.io/mkdocs-material/).
+The documentation is built with [Hugo](https://gohugo.io/) and the [Hextra theme](https://imfing.github.io/hextra/).
+The Hugo project lives in the `.docs/` directory and the content is the Markdown under `Documentation/`.
+The order of pages in the navigation is defined by the `.pages` files in each directory.
 
 ## Markdown Extensions
 
-Thanks to the MkDocs Material theme we have certain "markdown syntax extensions" available:
+Besides standard Markdown, the following features are available:
 
-* [Admonitions](https://squidfunk.github.io/mkdocs-material/reference/admonitions/)
-* [Footnotes](https://squidfunk.github.io/mkdocs-material/reference/footnotes/)
-* [Icons, Emojis](https://squidfunk.github.io/mkdocs-material/reference/icons-emojis/)
-* [Task lists](https://squidfunk.github.io/mkdocs-material/reference/lists/#using-definition-lists)
-* And [more](https://squidfunk.github.io/mkdocs-material/reference/)..
+* Alerts: blockquotes that start with an alert marker. The supported types (case-insensitive) are `NOTE`, `TIP`,
+    `IMPORTANT`, `WARNING`, `CAUTION`, `INFO`, `EXAMPLE`, `ADVANCED`, `HINT`, `WARN`, `ATTENTION` and `BUG`.
+    An optional title can follow the marker, and a `-` or `+` after the marker makes the alert collapsible
+    (collapsed or expanded by default).
+* Footnotes, e.g. `text[^1]` with `[^1]: The footnote.`
+* Emoji shortcodes, e.g. `:memo:`
+* Task lists, e.g. `- [x] done`
+* Definition lists
+* Tables
+* Explicit heading ids, e.g. `## My Heading {#my-id}`, to keep a link target stable
 
-For a whole list of features [Reference - Material for MkDocs](https://squidfunk.github.io/mkdocs-material/reference/).
+An alert looks like this:
+
+```markdown
+> [!NOTE] Optional title
+> Every line of the alert is prefixed with `> `.
+```
+
+Links between documents must be relative links to the `.md` files, for example `[Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md)`.
+Links are checked when the docs are built, so a broken link or heading anchor fails the build.
 
 ## Local Preview
 
@@ -24,13 +39,17 @@ To locally preview the documentation, you can run the following command (in the 
 make docs-preview
 ```
 
-When previewing, now you can navigate your browser to `http://127.0.0.1:8000/` to open the preview of the documentation.
+When previewing, now you can navigate your browser to `http://localhost:1313/` to open the preview of the documentation.
+The port can be changed with the `DOCS_PREVIEW_PORT` environment variable.
 
-!!! hint
-    Should you encounter a `command not found` error while trying to preview the docs for the first
-    time on a machine, you probably need to install the dependencies for MkDocs and extensions used:
-    `pip3 install -r build/release/requirements_docs.txt`. Make sure that your Python binary path is
-    included in your `PATH`.
+To build the documentation exactly as CI does, run:
+
+```console
+make docs-build
+```
+
+The result is written to the `site/` directory. The Hugo binary is downloaded automatically, and `go` must be installed
+since the theme is a Hugo module.
 
 ## Making docs
 

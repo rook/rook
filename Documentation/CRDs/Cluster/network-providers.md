@@ -11,9 +11,9 @@ daemons and can reach the Ceph cluster easily via network scanning.
 Rook allows selecting alternative network providers to address some of these downsides, sometimes at
 the expense of others. Selecting alternative network providers is an advanced topic.
 
-!!! Note
-    This is an advanced networking topic.
-    See also the [CephCluster general networking settings.](./ceph-cluster-crd.md#network-configuration-settings)
+> [!NOTE]
+> This is an advanced networking topic.
+> See also the [CephCluster general networking settings.](./ceph-cluster-crd.md#network-configuration-settings)
 
 ## Ceph Networking Fundamentals
 
@@ -130,10 +130,10 @@ These requirements require careful planning, but some methods are able to meet t
 more easily than others. [Examples are provided after the full document](#multus-examples) to help
 understand and implement these requirements.
 
-!!! Tip
-    Keep in mind that there are often ten or more Rook/Ceph pods per host. The pod address space may
-    need to be an order of magnitude larger (or more) than the host address space to allow the
-    storage cluster to grow in the future.
+> [!TIP]
+> Keep in mind that there are often ten or more Rook/Ceph pods per host. The pod address space may
+> need to be an order of magnitude larger (or more) than the host address space to allow the
+> storage cluster to grow in the future.
 
 ### Multus Configuration
 
@@ -238,12 +238,12 @@ tool like so:
     Multus networks from working properly, and it will request the logs and outputs that will help
     debug issues.
 
-!!! note
-    The tool requires host network access. Many Kubernetes distros have security limitations. Use
-    the tool's `serviceAccountName` config option or `--service-account-name` CLI flag to instruct
-    the tool to run using a particular ServiceAccount in order to allow necessary permissions.
-    An example compatible with openshift is provided in the Rook repository at
-    [deploy/examples/multus-validation-test-openshift.yaml](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation-test-openshift.yaml)
+> [!NOTE]
+> The tool requires host network access. Many Kubernetes distros have security limitations. Use
+> the tool's `serviceAccountName` config option or `--service-account-name` CLI flag to instruct
+> the tool to run using a particular ServiceAccount in order to allow necessary permissions.
+> An example compatible with openshift is provided in the Rook repository at
+> [deploy/examples/multus-validation-test-openshift.yaml](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation-test-openshift.yaml)
 
 ### Known limitations with Multus
 

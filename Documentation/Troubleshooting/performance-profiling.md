@@ -4,9 +4,9 @@ title: Performance Profiling
 
 ## Collect perf data of a ceph process at runtime
 
-!!! warn
-    This is an advanced topic please be aware of the steps you're performing or reach out
-    to the experts for further guidance.
+> [!WARN]
+> This is an advanced topic please be aware of the steps you're performing or reach out
+> to the experts for further guidance.
 
 There are some cases where the debug logs are not sufficient to investigate issues
 like high CPU utilization of a Ceph process. In that situation, coredump and perf information

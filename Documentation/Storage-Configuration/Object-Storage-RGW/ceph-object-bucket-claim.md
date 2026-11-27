@@ -12,8 +12,8 @@ Users request a new or existing bucket by creating an OBC which is shown below. 
 
 The OBC provisioner name found in the storage class by default includes the operator namespace as a prefix. A custom prefix can be applied by the operator setting in the `rook-ceph-operator-config` configmap: `ROOK_OBC_PROVISIONER_NAME_PREFIX`.
 
-!!! Note
-    Changing the prefix is not supported on existing clusters. This may impact the function of existing OBCs.
+> [!NOTE]
+> Changing the prefix is not supported on existing clusters. This may impact the function of existing OBCs.
 
 ## Example
 

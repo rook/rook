@@ -101,7 +101,7 @@ spec:
         annotations. The key `cephx-keyring`, and keys with a `rook.io` or `*.rook.io` prefix, are reserved by Rook
         and rejected.
 
-!!! warning
-    Anyone who can create or edit a CephObjectStoreUser can use `secretTemplate` to hand the user's credentials to any
-    controller that acts on Secret labels or annotations, for example one that copies the Secret into another namespace.
-    Grant write access to CephObjectStoreUsers with this in mind, or restrict `secretTemplate` with an admission policy.
+> [!WARNING]
+> Anyone who can create or edit a CephObjectStoreUser can use `secretTemplate` to hand the user's credentials to any
+> controller that acts on Secret labels or annotations, for example one that copies the Secret into another namespace.
+> Grant write access to CephObjectStoreUsers with this in mind, or restrict `secretTemplate` with an admission policy.

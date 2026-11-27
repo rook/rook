@@ -1,0 +1,20 @@
+{{- /* A page that only redirects to the page in params.redirect, keeping the URL fragment. */ -}}
+{{- $target := site.GetPage .Params.redirect -}}
+{{- if not $target -}}
+  {{- errorf "%s: redirect target %q does not exist" .File.Path .Params.redirect -}}
+{{- end -}}
+{{- $url := $target.RelPermalink -}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <link rel="canonical" href="{{ $target.Permalink }}">
+  <meta name="robots" content="noindex">
+  <script>var anchor=window.location.hash.substr(1);location.href="{{ $url }}"+(anchor?"#"+anchor:"")</script>
+  <meta http-equiv="refresh" content="0; url={{ $url }}">
+</head>
+<body>
+You're being redirected to a <a href="{{ $url }}">new destination</a>.
+</body>
+</html>

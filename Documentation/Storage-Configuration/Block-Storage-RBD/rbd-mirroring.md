@@ -23,9 +23,9 @@ This capability is available in two modes:
     manually created RBD image mirror-snapshots to replicate
     crash-consistent RBD images between clusters.
 
-!!! note
-    This document sheds light on rbd mirroring and how to set it up using rook.
-    See also the topic on [Failover and Failback](rbd-async-disaster-recovery-failover-failback.md)
+> [!NOTE]
+> This document sheds light on rbd mirroring and how to set it up using rook.
+> See also the topic on [Failover and Failback](rbd-async-disaster-recovery-failover-failback.md)
 
 ## Create RBD Pools
 
@@ -57,15 +57,15 @@ Execute the following steps on each peer cluster to create mirror enabled pools:
 
 * Repeat the steps on the peer cluster.
 
-!!! note
-    Pool name across the cluster peers must be the same
-    for RBD replication to function.
+> [!NOTE]
+> Pool name across the cluster peers must be the same
+> for RBD replication to function.
 
 See the [CephBlockPool documentation](../../CRDs/Block-Storage/ceph-block-pool-crd.md#mirroring) for more details.
 
-!!! note
-    It is also feasible to edit existing pools and
-    enable them for replication.
+> [!NOTE]
+> It is also feasible to edit existing pools and
+> enable them for replication.
 
 ## Bootstrap Peers
 
@@ -235,11 +235,11 @@ In this case, we create a Volume Replication Class on cluster-1
 [cluster-1]$ kubectl apply -f deploy/examples/volume-replication-class.yaml
 ```
 
-!!! note
-    The `schedulingInterval` can be specified in formats of
-    minutes, hours or days using suffix `m`, `h` and `d` respectively.
-    The optional schedulingStartTime can be specified using the ISO 8601
-    time format.
+> [!NOTE]
+> The `schedulingInterval` can be specified in formats of
+> minutes, hours or days using suffix `m`, `h` and `d` respectively.
+> The optional schedulingStartTime can be specified using the ISO 8601
+> time format.
 
 ### Create a VolumeReplication CR
 
@@ -250,9 +250,9 @@ In this case, we create a Volume Replication Class on cluster-1
 [cluster-1]$ kubectl apply -f deploy/examples/volume-replication.yaml
 ```
 
-!!! note
-    :memo: `VolumeReplication` is a namespace scoped object. Thus,
-    it should be created in the same namespace as of PVC.
+> [!NOTE]
+> :memo: `VolumeReplication` is a namespace scoped object. Thus,
+> it should be created in the same namespace as of PVC.
 
 ### Checking Replication Status
 
@@ -305,11 +305,11 @@ status:
   state: Primary
 ```
 
-## Backup & Restore
+## Backup & Restore {#backup-restore}
 
-!!! note
-    To effectively resume operations after a failover/relocation,
-    backup of the kubernetes artifacts like deployment, PVC, PV, etc need to be created beforehand by the admin; so that the application can be restored on the peer cluster.
+> [!NOTE]
+> To effectively resume operations after a failover/relocation,
+> backup of the kubernetes artifacts like deployment, PVC, PV, etc need to be created beforehand by the admin; so that the application can be restored on the peer cluster.
 
 Here, we take a backup of PVC and PV object on one site, so that they can be restored later to the peer cluster.
 
@@ -327,9 +327,9 @@ Here, we take a backup of PVC and PV object on one site, so that they can be res
 [cluster-1]$ kubectl get pv/pvc-65dc0aac-5e15-4474-90f4-7a3532c621ec -oyaml > pv_backup.yaml
 ```
 
-!!! note
-    We can also take backup using external tools like **Velero**.
-    See [velero documentation](https://velero.io/docs/main/) for more information.
+> [!NOTE]
+> We can also take backup using external tools like **Velero**.
+> See [velero documentation](https://velero.io/docs/main/) for more information.
 
 #### **Restore the backup on cluster-2**
 

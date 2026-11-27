@@ -1,0 +1,34 @@
+{{- /*
+  Replaces the Hextra navbar: a header in the Rook colors with the logo, the version selector,
+  search, the theme toggle and the repository link, and a row of tabs for the top-level sections.
+*/ -}}
+{{- $page := . -}}
+{{- $iconHeight := 24 -}}
+<div class="hextra-nav-container rook-header hx:sticky hx:top-0 hx:z-20 hx:w-full hx:print:hidden">
+  <nav class="hextra-max-navbar-width hx:mx-auto hx:flex hx:items-center hx:justify-end hx:gap-1 hx:md:gap-2 rook-header-row hx:px-6">
+    <a class="hx:flex hx:items-center hx:hover:opacity-75 hx:ltr:mr-2" href="{{ site.Home.RelPermalink }}">
+      <img class="hx:mr-2 hx:block" src="{{ site.Params.navbar.logo.path }}" alt="Rook logo" style="height: {{ site.Params.navbar.logo.height }}px; width: auto" />
+      <span class="hx:mr-2 hx:font-bold hx:inline hx:select-none">{{ site.Title }}</span>
+    </a>
+    <div class="hx:ltr:mr-auto">
+      <div class="rook-version" data-rook-version hidden>
+        <button type="button" class="rook-version-button" aria-haspopup="menu" aria-expanded="false"></button>
+        <ul class="rook-version-menu" role="menu" hidden></ul>
+      </div>
+    </div>
+    {{- partial "search.html" (dict) -}}
+    {{- partial "theme-toggle.html" (dict "hideLabel" true "iconHeight" $iconHeight "location" "top" "class" "hx:p-1 hx:md:p-2") -}}
+    <a class="hx:p-1 hx:md:p-2 hx:text-current" href="{{ site.Params.repoURL }}" title="GitHub" rel="noreferrer">
+      {{- partial "utils/icon.html" (dict "name" "github" "attributes" (printf "height=%d" $iconHeight)) -}}
+      <span class="hx:sr-only">GitHub</span>
+    </a>
+    <button type="button" aria-label="{{ (T "menu") | default "Menu" }}" aria-expanded="false" class="hextra-hamburger-menu hx:cursor-pointer hx:-mr-1 hx:rounded-sm hx:p-1 hx:md:hidden">
+      {{- partial "utils/icon.html" (dict "name" "hamburger-menu" "attributes" (printf "height=%d" $iconHeight)) -}}
+    </button>
+  </nav>
+  <nav class="rook-tabs hextra-max-navbar-width hx:mx-auto hx:px-6 hx:max-md:hidden" aria-label="Sections">
+    {{- range partial "rook/tabs.html" $page -}}
+      <a class="rook-tab{{ if .active }} rook-tab-active{{ end }}" href="{{ .first.RelPermalink }}">{{ .title }}</a>
+    {{- end -}}
+  </nav>
+</div>

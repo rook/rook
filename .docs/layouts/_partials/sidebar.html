@@ -1,0 +1,59 @@
+{{- /*
+  Replaces the Hextra sidebar: the tree is built from the `.pages` files (rook/nav.html) instead
+  of page weights. On large screens it shows the active tab; on small screens all tabs.
+*/ -}}
+{{- $page := .context -}}
+{{- $tabs := partial "rook/tabs.html" $page -}}
+
+<aside class="hextra-sidebar-container hx:flex hx:flex-col hx:print:hidden hx:md:top-[var(--hextra-navbar-height)] hx:md:shrink-0 hx:md:w-64 hx:md:self-start hx:max-md:[transform:translate3d(0,-100%,0)] hx:md:sticky">
+  <div class="hextra-scrollbar hx:overflow-y-auto hx:overflow-x-hidden hx:p-4 hx:grow hx:md:h-[calc(100vh-var(--hextra-navbar-height)-var(--menu-height))]">
+    <div class="hx:md:hidden rook-sidebar-tree">
+      {{- template "rook-tree" (dict "items" $tabs "page" $page "level" 0) -}}
+    </div>
+    <div class="hx:max-md:hidden rook-sidebar-tree">
+      {{- range where $tabs "active" true -}}
+        <p class="rook-sidebar-title">{{ .title }}</p>
+        {{- template "rook-tree" (dict "items" .items "page" $page "level" 0) -}}
+      {{- end -}}
+    </div>
+  </div>
+</aside>
+
+{{- define "rook-tree" -}}
+  {{- $page := .page -}}
+  {{- $level := .level -}}
+  <ul class='hx:flex hx:flex-col hx:gap-1{{ if gt $level 0 }} hx:relative hx:before:absolute hx:before:inset-y-1 hx:before:w-px hx:before:bg-gray-200 hx:before:content-[""] hx:ltr:ml-3 hx:ltr:pl-3 hx:ltr:before:left-0 hx:dark:before:bg-neutral-800{{ end }}'>
+    {{- range .items -}}
+      {{- with .page -}}
+        {{- $active := eq . $page -}}
+        <li class="hx:flex hx:flex-col">
+          {{- template "rook-item" (dict "title" .LinkTitle "link" .RelPermalink "active" $active) -}}
+        </li>
+      {{- else -}}
+        <li class="open">
+          <div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center">
+            <span data-rook-section class="hx:flex hx:grow hx:cursor-default hx:px-2 hx:py-1.5 hx:text-sm hx:font-semibold hx:text-gray-900 hx:dark:text-gray-100 hx:ltr:pr-8">{{ .title }}</span>
+            <button type="button" class="hextra-sidebar-collapsible-button hx:absolute hx:top-1/2 hx:-translate-y-1/2 hx:ltr:right-2 hx:shrink-0 hx:cursor-pointer hx:p-0 hx:text-gray-500 hx:dark:text-neutral-400 hx:group-hover:text-gray-900 hx:dark:group-hover:text-gray-50" aria-label="{{ (T "toggleSection") | default "Toggle section" }}" aria-expanded="true">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" focusable="false" class="hx:h-[18px] hx:min-w-[18px] hx:rounded-xs hx:p-0.5 hx:hover:bg-gray-800/5 hx:dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="hx:origin-center hx:transition-transform hx:rtl:-rotate-180"></path></svg>
+            </button>
+          </div>
+          <div class="hextra-sidebar-children hx:overflow-hidden">
+            {{- template "rook-tree" (dict "items" .items "page" $page "level" (add $level 1)) -}}
+          </div>
+        </li>
+      {{- end -}}
+    {{- end -}}
+  </ul>
+{{- end -}}
+
+{{- define "rook-item" -}}
+  {{- $linkClass := "hx:flex hx:items-center hx:justify-between hx:gap-2 hx:grow hx:cursor-pointer hx:rounded-sm hx:px-2 hx:py-1.5 hx:text-sm hx:transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] hx:hextra-focus-visible-inset" -}}
+  {{- if .active -}}
+    {{- $linkClass = printf "%s hextra-sidebar-active-item hx:bg-primary-100 hx:font-semibold hx:text-primary-800 hx:dark:bg-primary-400/10 hx:dark:text-primary-600" $linkClass -}}
+  {{- else -}}
+    {{- $linkClass = printf "%s hx:text-gray-500 hx:hover:bg-gray-100 hx:hover:text-gray-900 hx:dark:text-neutral-400 hx:dark:hover:bg-primary-100/5 hx:dark:hover:text-gray-50" $linkClass -}}
+  {{- end -}}
+  <div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center" data-active="{{ .active }}">
+    <a class="{{ $linkClass }}" href="{{ .link }}"><span class="hx:min-w-0 [word-break:break-word]">{{ .title }}</span></a>
+  </div>
+{{- end -}}

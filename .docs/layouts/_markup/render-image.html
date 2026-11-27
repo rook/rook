@@ -1,0 +1,8 @@
+{{- /* Images are referenced relative to the Markdown file; pages are published one directory deeper. */ -}}
+{{- $dest := .Destination -}}
+{{- $u := urls.Parse $dest -}}
+{{- if and (not $u.Scheme) $u.Path (not (hasPrefix $u.Path "/")) -}}
+  {{- $dest = printf "../%s" $dest -}}
+{{- end -}}
+<img src="{{ $dest | safeURL }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }} loading="lazy" />
+{{- /* Drop trailing newlines */ -}}

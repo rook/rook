@@ -1,3 +1,7 @@
+---
+title: Maintenance and Support
+---
+
 # Maintenance and Support
 
 Rook plans to release a new minor version three times a year, or about every four months.

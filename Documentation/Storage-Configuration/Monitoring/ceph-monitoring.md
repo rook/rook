@@ -8,12 +8,12 @@ If you do not have Prometheus running, follow the steps below to enable monitori
 contains a Prometheus instance, it will automatically discover Rook's scrape endpoint using the standard
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
 
-!!! attention
-    This assumes that the Prometheus instances is searching all your Kubernetes namespaces for Pods with these annotations.
-    If prometheus is already installed in a cluster, it may not be configured to watch for third-party service monitors such as for Rook.
-    Normally you should be able to add the prometheus annotations `prometheus.io/scrape=true` and `prometheus.io/port={port}` and
-    prometheus would automatically configure the scrape points and start gathering metrics. If prometheus isn't configured to do this, see the
-    [prometheus operator docs](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#prometheusioscrape).
+> [!ATTENTION]
+> This assumes that the Prometheus instances is searching all your Kubernetes namespaces for Pods with these annotations.
+> If prometheus is already installed in a cluster, it may not be configured to watch for third-party service monitors such as for Rook.
+> Normally you should be able to add the prometheus annotations `prometheus.io/scrape=true` and `prometheus.io/port={port}` and
+> prometheus would automatically configure the scrape points and start gathering metrics. If prometheus isn't configured to do this, see the
+> [prometheus operator docs](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#prometheusioscrape).
 
 ## Prometheus Operator
 
@@ -24,8 +24,8 @@ A full explanation can be found in the [Prometheus operator repository on GitHub
 kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.82.0/bundle.yaml
 ```
 
-!!! note
-    If the Prometheus Operator is already present in your cluster, the command provided above may fail. For a detailed explanation of the issue and a workaround, please refer to [this issue](https://github.com/rook/rook/issues/13459).
+> [!NOTE]
+> If the Prometheus Operator is already present in your cluster, the command provided above may fail. For a detailed explanation of the issue and a workaround, please refer to [this issue](https://github.com/rook/rook/issues/13459).
 
 
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
@@ -91,9 +91,9 @@ spec:
         prometheusEndpointSSLVerify: true
 ```
 
-!!! note
-    It is not recommended to consume storage from the Ceph cluster for Prometheus.
-    If the Ceph cluster fails, Prometheus would become unresponsive and thus not alert you of the failure.
+> [!NOTE]
+> It is not recommended to consume storage from the Ceph cluster for Prometheus.
+> If the Ceph cluster fails, Prometheus would become unresponsive and thus not alert you of the failure.
 
 ## Prometheus Web Console
 
@@ -170,8 +170,8 @@ Alternatively, to enable the Ceph Prometheus alerts with example manifests follo
     kubectl apply -f cluster.yaml
     ```
 
-!!! note
-    This expects the Prometheus Operator and a Prometheus instance to be pre-installed by the admin.
+> [!NOTE]
+> This expects the Prometheus Operator and a Prometheus instance to be pre-installed by the admin.
 
 ### Customize Alerts
 
@@ -223,9 +223,9 @@ kubectl create -f updated-chart.yaml
 
 The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://slack.rook.io).
 
-!!! note
-    The dashboards are only compatible with Grafana 7.2.0 or higher.
-    Also note that the dashboards are updated from time to time, to fix issues and improve them.
+> [!NOTE]
+> The dashboards are only compatible with Grafana 7.2.0 or higher.
+> Also note that the dashboards are updated from time to time, to fix issues and improve them.
 
 The following Grafana dashboards are available:
 
@@ -245,8 +245,8 @@ like `common.yaml`.
 kubectl apply -f deploy/examples/monitoring/rbac.yaml
 ```
 
-!!! hint
-    This is updated automatically if you are upgrading via the helm chart
+> [!HINT]
+> This is updated automatically if you are upgrading via the helm chart
 
 ## Teardown
 
@@ -279,9 +279,9 @@ kubectl create -f csi-metrics-service-monitor.yaml
 
 This will create the service monitor to have prometheus monitor CSI
 
-!!! note
-    Please note that the liveness sidecar is disabled by default.
-    To enable it set `CSI_ENABLE_LIVENESS` to `true` in the Rook operator settings (operator.yaml).
+> [!NOTE]
+> Please note that the liveness sidecar is disabled by default.
+> To enable it set `CSI_ENABLE_LIVENESS` to `true` in the Rook operator settings (operator.yaml).
 
 ### Collecting RBD per-image IO statistics
 
@@ -336,5 +336,5 @@ spec:
      threshold: "90"
 ```
 
-!!! warning
-    During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed [here](https://github.com/rook/rook/issues/10001)
+> [!WARNING]
+> During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed [here](https://github.com/rook/rook/issues/10001)

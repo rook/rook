@@ -28,11 +28,11 @@ defined in [the kubernetes
 documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/).
 In short, as the documentation describes it:
 
-!!! info
-    Just like StorageClass provides a way for administrators to describe the
-    "classes" of storage they offer when provisioning a volume,
-    VolumeSnapshotClass provides a way to describe the "classes" of storage when
-    provisioning a volume snapshot.
+> [!INFO]
+> Just like StorageClass provides a way for administrators to describe the
+> "classes" of storage they offer when provisioning a volume,
+> VolumeSnapshotClass provides a way to describe the "classes" of storage when
+> provisioning a volume snapshot.
 
 ## RBD Snapshots
 
@@ -136,7 +136,7 @@ maintain a configmap whose contents will match this key. By default this is
 kubectl create -f deploy/examples/csi/cephfs/snapshotclass.yaml
 ```
 
-### VolumeSnapshot
+### VolumeSnapshot {#volumesnapshot_1}
 
 In [snapshot](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/snapshot.yaml),
 `volumeSnapshotClassName` should be the name of the `VolumeSnapshotClass`

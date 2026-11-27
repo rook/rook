@@ -4,8 +4,8 @@ title: Container Object Storage Interface (COSI)
 
 The Ceph COSI driver provisions buckets for object storage. This document instructs on enabling the driver and consuming a bucket from a sample application.
 
-!!! note
-    The Ceph COSI driver is currently in experimental mode.
+> [!NOTE]
+> The Ceph COSI driver is currently in experimental mode.
 
 ## Prerequisites
 

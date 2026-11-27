@@ -1,0 +1,20 @@
+{{- /*
+  Based on the Hextra v0.13.0 docs layout. Without breadcrumbs and pager, and the page title is
+  only added when the content does not start with its own level 1 heading.
+*/ -}}
+{{ define "main" }}
+  <div class="hx:mx-auto hx:flex hextra-max-page-width">
+    {{ partial "sidebar.html" (dict "context" .) }}
+    {{ partial "toc.html" . }}
+    <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--hextra-navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8 hx:pr-[calc(env(safe-area-inset-right)-1.5rem)]">
+      <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
+        <div class="content">
+          {{ if not (findRE `<h1[\s>]` .Content 1) }}
+            <h1>{{ .Title }}</h1>
+          {{ end }}
+          {{ .Content }}
+        </div>
+      </main>
+    </article>
+  </div>
+{{ end }}

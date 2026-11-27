@@ -1,0 +1,19 @@
+{{- /*
+  Replaces the Hextra light/dark/system menu with a single button that flips between light and
+  dark. Without a stored choice the theme follows the OS preference (params.theme.default: system).
+  The class is not hextra-theme-toggle, so the Hextra menu script leaves the button alone.
+*/ -}}
+{{- $iconHeight := .iconHeight | default 24 -}}
+<button type="button" class="rook-theme-toggle hx:cursor-pointer {{ .class }}" title="{{ (T "changeTheme") | default "Change theme" }}" aria-label="{{ (T "changeTheme") | default "Change theme" }}">
+  {{- partial "utils/icon.html" (dict "name" "moon" "attributes" (printf `height=%d class="hx:dark:hidden"` $iconHeight)) -}}
+  {{- partial "utils/icon.html" (dict "name" "sun" "attributes" (printf `height=%d class="hx:hidden hx:dark:block"` $iconHeight)) -}}
+</button>
+{{- /* setTheme() and the "color-theme" storage key are from Hextra's head/theme.js */ -}}
+  <script>
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".rook-theme-toggle")) return;
+      const theme = document.documentElement.classList.contains("dark") ? "light" : "dark";
+      setTheme(theme);
+      localStorage.setItem("color-theme", theme);
+    });
+  </script>

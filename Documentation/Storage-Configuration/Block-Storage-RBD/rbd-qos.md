@@ -17,10 +17,10 @@ modification of QoS limits on existing volumes without recreation using the
 The default krbd (kernel RBD) mounter enforces QoS via the Linux cgroup v2 `io.max`
 controller at the container level.
 
-!!! note
-    Kubernetes >= v1.34 is required (VolumeAttributesClass is GA since v1.34).
-    cgroup v2 must be enabled on the nodes (default on most modern Linux distributions)
-    and Linux kernel >= 5.8 is required.
+> [!NOTE]
+> Kubernetes >= v1.34 is required (VolumeAttributesClass is GA since v1.34).
+> cgroup v2 must be enabled on the nodes (default on most modern Linux distributions)
+> and Linux kernel >= 5.8 is required.
 
 ## QoS Parameters Reference
 
@@ -88,8 +88,8 @@ For new Rook Ceph deployments, follow these steps to enable QoS.
     kubectl patch pvc rbd-pvc-qos -p '{"spec":{"volumeAttributesClassName":"rook-ceph-rbd-cgroup-qos"}}'
     ```
 
-    !!! note
-        A single pod can have multiple volumes with different QoS limits by using different VolumeAttributesClasses for each PVC.
+    > [!NOTE]
+    > A single pod can have multiple volumes with different QoS limits by using different VolumeAttributesClasses for each PVC.
 
 ## Upgrading Existing Clusters
 
@@ -98,9 +98,9 @@ Follow these steps to enable QoS on upgraded clusters.
 
 1. **Update the existing StorageClass** to add the required secret references. Since StorageClass parameters are immutable, you must delete and recreate it:
 
-    !!! warning
-        Deleting a StorageClass does not affect existing PVs or PVCs. However, new PVC creation
-        will fail until the StorageClass is recreated.
+    > [!WARNING]
+    > Deleting a StorageClass does not affect existing PVs or PVCs. However, new PVC creation
+    > will fail until the StorageClass is recreated.
 
     ```console
     kubectl get storageclass rook-ceph-block -o yaml > storageclass-backup.yaml

@@ -153,8 +153,8 @@ Address: 10.233.1.212
 
 ## External Monitors
 
-!!! attention
-    This feature is experimental.
+> [!ATTENTION]
+> This feature is experimental.
 
 It is possible to have both Rook-managed and external monitors in the same Rook cluster.
 One use case for this is 2 datacenter aka 2-AZ (Availability Zone) setup. For 2-AZ setup, Zone outage will lead to loss of the k8s control plane and half of the worker nodes hosting Rook mons.

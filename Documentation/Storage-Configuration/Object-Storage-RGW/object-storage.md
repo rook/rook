@@ -19,8 +19,8 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 5. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
 6. Create a [multi-instance RGW setup](#object-multi-instance). This option allows you to have multiple `CephObjectStore` with different configurations backed by the same storage pools. For example, serving S3, Swift, or Admin-ops API by separate RGW instances.
 
-!!! note
-    Updating the configuration of an object store between these types is not supported.
+> [!NOTE]
+> Updating the configuration of an object store between these types is not supported.
 
 Rook has the ability to either deploy an object store in Kubernetes or to connect to an external RGW service.
 Most commonly, the object store will be configured in Kubernetes by Rook.
@@ -30,8 +30,8 @@ Alternatively see the [external section](#connect-to-an-external-object-store) t
 
 The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
-!!! note
-    This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
+> [!NOTE]
+> This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -87,8 +87,8 @@ The below sample will create one or more object stores. Shared Ceph pools will b
 
 Data isolation is enforced between the object stores with the use of Ceph RADOS namespaces. The separate RADOS namespaces do not allow access of the data across object stores.
 
-!!! note
-    This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
+> [!NOTE]
+> This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -96,11 +96,11 @@ The OSDs must be located on different nodes, because the [`failureDomain`](../..
 
 Create the shared pools that will be used by each of the object stores.
 
-!!! note
-    If object stores have been previously created, the first pool below (`.rgw.root`)
-    does not need to be defined again as it would have already been created
-    with an existing object store. There is only one `.rgw.root` pool existing
-    to store metadata for all object stores.
+> [!NOTE]
+> If object stores have been previously created, the first pool below (`.rgw.root`)
+> does not need to be defined again as it would have already been created
+> with an existing object store. There is only one `.rgw.root` pool existing
+> to store metadata for all object stores.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -197,8 +197,8 @@ such as `store-a` in this example.
 
 ### Create Local Object Store(s) with pool placements
 
-!!! attention
-    This feature is experimental.
+> [!ATTENTION]
+> This feature is experimental.
 
 This section contains a guide on how to configure [RGW's pool placement and storage classes](https://docs.ceph.com/en/reef/radosgw/placement/) with Rook.
 
@@ -338,8 +338,8 @@ allow secure management operations.
 
 ## Create a Bucket
 
-!!! info
-    This document is a guide for creating bucket with an Object Bucket Claim (OBC). To create a bucket with the experimental COSI Driver, see the [COSI documentation](cosi.md).
+> [!INFO]
+> This document is a guide for creating bucket with an Object Bucket Claim (OBC). To create a bucket with the experimental COSI Driver, see the [COSI documentation](cosi.md).
 
 Now that the object store is configured, next we need to create a bucket where a client can read and write objects. A bucket can be created by defining a storage class, similar to the pattern used by block and file storage.
 First, define the storage class that will allow object clients to create a bucket.
@@ -445,8 +445,8 @@ below in the section [creating a user](#create-a-user) if you are not creating t
 
 To test the `CephObjectStore`, set the object store credentials in the toolbox pod that contains the `s5cmd` tool.
 
-!!! important
-    The default toolbox.yaml does not contain the s5cmd. The toolbox must be started with the rook operator image (toolbox-operator-image), which does contain s5cmd.
+> [!IMPORTANT]
+> The default toolbox.yaml does not contain the s5cmd. The toolbox must be started with the rook operator image (toolbox-operator-image), which does contain s5cmd.
 
 ```console
 kubectl create -f deploy/examples/toolbox-operator-image.yaml
@@ -600,9 +600,9 @@ When `.spec.keys` is present, no `Secret` is created for the user.
 If an existing `CephObjectStoreUser` is being transited to using explicit keys, the existing `Secret` will be deleted.
 Conversely, if a `.spec.keys` is patched out of an existing `CephObjectStoreUser` all except one of keypairs set on the user will be purged and a `Secret` will be created holding the only remaining keypair.
 
-!!! important
-    When `.spec.keys` is not set, all but **one** keypair will be removed from the rgw user.
-    When `.spec.keys` is set, any keypair not explicitly specified will be removed from the rgw user.
+> [!IMPORTANT]
+> When `.spec.keys` is not set, all but **one** keypair will be removed from the rgw user.
+> When `.spec.keys` is set, any keypair not explicitly specified will be removed from the rgw user.
 
 Example of explicitly managing the rgw user's keypairs:
 
@@ -674,9 +674,9 @@ certificate. If it is not possible to add the service DNS name as a SAN on the T
 set `hosting.advertiseEndpoint` to a TLS-approved endpoint to help ensure Rook and clients use
 secure data access.
 
-!!! note
-    OpenShift users can use add `service.beta.openshift.io/serving-cert-secret-name` as a service
-    annotation instead of using `sslCertificateRef`.
+> [!NOTE]
+> OpenShift users can use add `service.beta.openshift.io/serving-cert-secret-name` as a service
+> annotation instead of using `sslCertificateRef`.
 
 ## Virtual host-style Bucket Access
 
@@ -846,11 +846,11 @@ spec:
       urlPrefix: "/"
 ```
 
-!!! note
-    Child resources should refer to the appropriate RGW instance.
-    For example, a `CephObjectStoreUser` requires the Admin Ops API,
-    so it should refer to an instance where this API is enabled.
-    After the user is created, it can be used for all instances.
+> [!NOTE]
+> Child resources should refer to the appropriate RGW instance.
+> For example, a `CephObjectStoreUser` requires the Admin Ops API,
+> so it should refer to an instance where this API is enabled.
+> After the user is created, it can be used for all instances.
 
 See the [example configuration](https://github.com/rook/rook/blob/master/deploy/examples/object-multi-instance-test.yaml) for more details.
 

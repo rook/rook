@@ -1,3 +1,7 @@
+---
+title: Export config from the Ceph provider cluster
+---
+
 # Export config from the Ceph provider cluster
 
 In order to configure an external Ceph cluster with Rook, we need to extract some information in order to connect to that cluster.
@@ -88,9 +92,9 @@ rbd-data-pool-name = <pool_name>
 python3 create-external-cluster-resources.py --config-file /config.ini
 ```
 
-!!! note
-    You can use both config file and other arguments at the same time
-    Priority: command-line-args has more priority than config.ini file values, and config.ini file values have more priority than default values.
+> [!NOTE]
+> You can use both config file and other arguments at the same time
+> Priority: command-line-args has more priority than config.ini file values, and config.ini file values have more priority than default values.
 
 ### Multi-tenancy
 
@@ -98,9 +102,9 @@ To enable multi-tenancy, run the script with the `--restricted-auth-permission` 
 It will generate the secrets which you can use for creating new `Consumer cluster` deployment using the same `Provider cluster`(ceph cluster).
 So you would be running different isolated consumer clusters on top of single `Provider cluster`.
 
-!!! note
-    Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users.
-    So apply these secrets only to new `Consumer cluster` deployment while using the same `Provider cluster`.
+> [!NOTE]
+> Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users.
+> So apply these secrets only to new `Consumer cluster` deployment while using the same `Provider cluster`.
 
 ```console
 python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --k8s-cluster-name <k8s-cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoint> --namespace <rook-ceph>

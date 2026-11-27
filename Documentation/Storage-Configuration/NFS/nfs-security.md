@@ -5,13 +5,13 @@ title: Security
 Rook provides security for CephNFS server clusters through two high-level features:
 [user ID mapping](#user-id-mapping) and [user authentication](#user-authentication).
 
-!!! attention
-    All features in this document are experimental and may not support upgrades to future versions.
+> [!ATTENTION]
+> All features in this document are experimental and may not support upgrades to future versions.
 
-!!! attention
-    Some configurations of these features may break the ability to
-    [mount NFS storage to pods via PVCs](./nfs-csi-driver.md#attaching-an-export-to-a-pod).
-    The NFS CSI driver may not be able to mount exports for pods when ID mapping is configured.
+> [!ATTENTION]
+> Some configurations of these features may break the ability to
+> [mount NFS storage to pods via PVCs](./nfs-csi-driver.md#attaching-an-export-to-a-pod).
+> The NFS CSI driver may not be able to mount exports for pods when ID mapping is configured.
 
 
 ## User ID mapping
@@ -157,15 +157,15 @@ cluster.
 
 Users must add this service principal to their Kerberos server configuration.
 
-!!! example
-    For a CephNFS named "fileshare" in the "business-unit" Kubernetes namespace that has a
-    `principalName` of "sales-apac" and where the Kerberos realm is "EXAMPLE.NET", the full
-    principal name will be `sales-apac/business-unit-fileshare@EXAMPLE.NET`.
+> [!EXAMPLE]
+> For a CephNFS named "fileshare" in the "business-unit" Kubernetes namespace that has a
+> `principalName` of "sales-apac" and where the Kerberos realm is "EXAMPLE.NET", the full
+> principal name will be `sales-apac/business-unit-fileshare@EXAMPLE.NET`.
 
-!!! advanced
-    `spec.security.kerberos.principalName` corresponds directly to NFS-Ganesha's
-    NFS_KRB5:PrincipalName config. See the
-    [NFS-Ganesha wiki](https://github.com/nfs-ganesha/nfs-ganesha/wiki/RPCSEC_GSS) for more details.
+> [!ADVANCED]
+> `spec.security.kerberos.principalName` corresponds directly to NFS-Ganesha's
+> NFS_KRB5:PrincipalName config. See the
+> [NFS-Ganesha wiki](https://github.com/nfs-ganesha/nfs-ganesha/wiki/RPCSEC_GSS) for more details.
 
 #### Kerberos domain name
 
