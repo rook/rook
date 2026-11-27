@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -423,7 +424,7 @@ func (r *ReconcileCephNVMeOFGateway) deleteNVMeOFGateway(gatewayName, group stri
 // getNVMeOFGatewayConfig generates a complete nvmeof.conf configuration file
 // with all values filled in (no placeholders). User overrides from nvmeofConfig
 // are merged on top of the default configuration.
-func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNetwork bool, interruptMode bool, userConfig map[string]map[string]string) (string, error) {
+func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNetwork bool, interruptMode bool, gatewayPort, monitorPort, discoveryPort int32, userConfig map[string]map[string]string) (string, error) {
 	cfg := ini.Empty()
 	// Set default [gateway] section
 	gatewaySection, err := cfg.NewSection("gateway")
@@ -433,7 +434,7 @@ func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNe
 	gatewaySection.Key("name").SetValue(daemonName)
 	gatewaySection.Key("group").SetValue(anaGroup)
 	gatewaySection.Key("addr").SetValue(podIP)
-	gatewaySection.Key("port").SetValue("5500")
+	gatewaySection.Key("port").SetValue(strconv.Itoa(int(gatewayPort)))
 	gatewaySection.Key("enable_auth").SetValue("False")
 	gatewaySection.Key("state_update_notify").SetValue("True")
 	gatewaySection.Key("state_update_timeout_in_msec").SetValue("2000")
@@ -458,7 +459,7 @@ func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNe
 		return "", errors.Wrap(err, "failed to create discovery section")
 	}
 	discoverySection.Key("addr").SetValue("0.0.0.0")
-	discoverySection.Key("port").SetValue("8009")
+	discoverySection.Key("port").SetValue(strconv.Itoa(int(discoveryPort)))
 
 	// Set default [ceph] section
 	cephSection, err := cfg.NewSection("ceph")
@@ -500,7 +501,7 @@ func getNVMeOFGatewayConfig(poolName, daemonName, podIP, anaGroup string, hostNe
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create monitor section")
 	}
-	monitorSection.Key("port").SetValue("5499")
+	monitorSection.Key("port").SetValue(strconv.Itoa(int(monitorPort)))
 
 	// Apply user overrides
 	for sectionName, options := range userConfig {
@@ -538,7 +539,9 @@ func (r *ReconcileCephNVMeOFGateway) generateConfigMap(nvmeof *cephv1.CephNVMeOF
 	// Default to interrupt mode (true) when not explicitly set
 	interruptMode := nvmeof.Spec.InterruptMode == nil || *nvmeof.Spec.InterruptMode
 
-	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, daemonName, podIP, anaGroup, hostNetwork, interruptMode, nvmeof.Spec.NVMeOFConfig)
+	_, gatewayPort, monitorPort, discoveryPort := getPorts(nvmeof)
+
+	configContent, err := getNVMeOFGatewayConfig(nvmeofPoolName, daemonName, podIP, anaGroup, hostNetwork, interruptMode, gatewayPort, monitorPort, discoveryPort, nvmeof.Spec.NVMeOFConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate nvmeof config")
 	}
