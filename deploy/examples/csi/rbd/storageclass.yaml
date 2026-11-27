@@ -1,12 +1,12 @@
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: replicapool
+  name: replicapool1
   namespace: rook-ceph # namespace:cluster
 spec:
-  failureDomain: host
+  failureDomain: osd
   replicated:
-    size: 3
+    size: 2
     # Disallow setting pool with replica 1, this could lead to data loss without recovery.
     # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
     requireSafeReplicaSize: true
@@ -17,7 +17,7 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: rook-ceph-block
+  name: rook-ceph-block1
 provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
 parameters:
   # clusterID is the namespace where the rook cluster is running
@@ -30,7 +30,7 @@ parameters:
   # used for the metadata of the images.
   # The erasure coded pool must be set as the `dataPool` parameter below.
   #dataPool: ec-data-pool
-  pool: replicapool
+  pool: replicapool1
 
   # (optional) mapOptions is a comma-separated list of map options.
   # For krbd options refer
