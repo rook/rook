@@ -38,6 +38,8 @@ const (
 	dmsetupBinary                   = "dmsetup"
 	luksOpenCmdTimeOut              = 90 * time.Second
 	removeEncryptedDeviceCmdTimeOut = 30 * time.Second
+	// max length of a LUKS2 label
+	luksLabelMaxLen = 47
 )
 
 var luksLabelCephFSID = regexp.MustCompile("ceph_fsid=(.*)")
@@ -132,9 +134,12 @@ func setLUKSLabelAndSubsystem(context *clusterd.Context, clusterInfo *cephclient
 	}
 	subsystem := fmt.Sprintf("ceph_fsid=%s", clusterInfo.FSID)
 	label := fmt.Sprintf("pvc_name=%s", pvcName)
+	// cryptsetup >= 2.8.2 fails on a too long label instead of truncating it
+	if len(label) > luksLabelMaxLen {
+		label = label[:luksLabelMaxLen]
+	}
 
 	logger.Infof("setting LUKS subsystem to %q and label to %q to disk %q", subsystem, label, disk)
-	// 48 characters limit for both label and subsystem
 	args := []string{"config", disk, "--subsystem", subsystem, "--label", label}
 	output, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
 	if err != nil {

@@ -26,7 +26,9 @@ function open_encrypted_block {
 # This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
 function set_luks_subsystem_and_label {
 	echo "setting LUKS label and subsystem"
-	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label pvc_name="$PVC_NAME"
+	# cryptsetup >= 2.8.2 fails on a label longer than 47 bytes instead of truncating it
+	LUKS_LABEL="pvc_name=$PVC_NAME"
+	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label "${LUKS_LABEL:0:47}"
 }
 
 if [ -b "$DM_PATH" ]; then
