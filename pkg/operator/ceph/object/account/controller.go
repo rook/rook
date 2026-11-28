@@ -701,6 +701,9 @@ func (r *ReconcileObjectStoreAccount) reconcileRootUser(cephObjectStoreAccount *
 
 // reconcileRootUserSecret creates or updates the Kubernetes secret containing root user credentials.
 func (r *ReconcileObjectStoreAccount) reconcileRootUserSecret(cephObjectStoreAccount *cephv1.CephObjectStoreAccount, user *admin.User, objectStore *cephv1.CephObjectStore) (string, error) {
+	if len(user.Keys) == 0 {
+		return "", errors.Errorf("root user %q has no access keys", user.ID)
+	}
 	secretName := generateRootUserSecretName(cephObjectStoreAccount)
 	secrets := map[string]string{
 		"AccessKey": user.Keys[0].AccessKey,
