@@ -21,13 +21,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/ceph/go-ceph/rgw/admin"
+	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,9 +41,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	runtimefake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -117,6 +125,115 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	err = p.populateDomainAndPort(sc)
 	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc", p.storeDomainName)
+}
+
+func TestRevokeOwnerKeys(t *testing.T) {
+	const (
+		namespace    = "ns"
+		storeName    = "store"
+		storageClass = "rook-bucket"
+		bucketName   = "bucket"
+		owner        = "alice"
+	)
+
+	for _, tt := range []struct {
+		name    string
+		keys    string
+		wantErr string
+	}{
+		{name: "owner without S3 keys", keys: `[]`, wantErr: `Ceph object user "alice" has no access keys`},
+		{name: "owner with an S3 key", keys: testUserKeysJSON},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			// Revoke builds its own HTTP clients for the admin ops and S3 APIs from the
+			// object store's endpoint, so a listener stands in for RGW instead of a MockClient
+			var (
+				mu         sync.Mutex
+				s3Auth     []string
+				unexpected []string
+			)
+			rgw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/admin/bucket":
+					_, _ = fmt.Fprintf(w, `{"bucket":%q,"owner":%q}`, bucketName, owner)
+				case r.Method == http.MethodGet && r.URL.Path == "/admin/user":
+					_, _ = io.WriteString(w, testUserJSON(owner, tt.keys))
+				case r.URL.Path == "/"+bucketName && r.URL.Query().Has("policy"):
+					s3Auth = append(s3Auth, r.Header.Get("Authorization"))
+					if r.Method == http.MethodGet {
+						w.WriteHeader(http.StatusNotFound)
+						_, _ = io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchBucketPolicy</Code></Error>`)
+						return
+					}
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					unexpected = append(unexpected, r.Method+" "+r.URL.String())
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}))
+			t.Cleanup(rgw.Close)
+
+			host, port, err := net.SplitHostPort(rgw.Listener.Addr().String())
+			require.NoError(t, err)
+			gatewayPort, err := strconv.ParseInt(port, 10, 32)
+			require.NoError(t, err)
+
+			clientset := test.New(t, 1)
+			_, err = clientset.StorageV1().StorageClasses().Create(ctx, &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{Name: storageClass},
+				Parameters: map[string]string{ObjectStoreName: storeName, objectStoreEndpoint: rgw.Listener.Addr().String()},
+			}, metav1.CreateOptions{})
+			require.NoError(t, err)
+			store := &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{Name: storeName, Namespace: namespace},
+				Spec: cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{
+					Port:                 int32(gatewayPort),
+					ExternalRgwEndpoints: []cephv1.EndpointAddress{{IP: host}},
+				}},
+			}
+			s := runtime.NewScheme()
+			require.NoError(t, v1.AddToScheme(s))
+			adminOpsSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: object.RGWAdminOpsUserSecretName, Namespace: namespace},
+				Data:       map[string][]byte{"accessKey": []byte("ADMINOPSACCESSKEY001"), "secretKey": []byte("adminopssecretkey")},
+			}
+			p := NewProvisioner(&clusterd.Context{
+				Clientset:     clientset,
+				RookClientset: rookclient.NewSimpleClientset(store),
+				Client:        runtimefake.NewClientBuilder().WithScheme(s).WithObjects(adminOpsSecret).Build(),
+			}, client.AdminTestClusterInfo(namespace))
+			ob := &bktv1alpha1.ObjectBucket{
+				ObjectMeta: metav1.ObjectMeta{Name: "obc-ns-claim"},
+				Spec: bktv1alpha1.ObjectBucketSpec{
+					StorageClassName: storageClass,
+					Connection: &bktv1alpha1.Connection{
+						Endpoint:        &bktv1alpha1.Endpoint{BucketName: bucketName},
+						AdditionalState: map[string]string{CephUser: owner, "bucketOwner": owner},
+					},
+				},
+			}
+
+			err = p.Revoke(ob)
+
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Empty(t, unexpected)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				require.NotEmpty(t, s3Auth)
+				for _, auth := range s3Auth {
+					assert.Contains(t, auth, "Credential="+testUserAccessKey+"/")
+				}
+			} else {
+				assert.EqualError(t, err, tt.wantErr)
+				assert.Empty(t, s3Auth)
+			}
+		})
+	}
 }
 
 func TestQuanityToInt64(t *testing.T) {

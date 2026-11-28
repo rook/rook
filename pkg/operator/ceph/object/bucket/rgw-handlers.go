@@ -23,6 +23,16 @@ type bucket struct {
 	additionalConfig *additionalConfigSpec
 }
 
+// userS3Key returns the S3 key pair that the provisioner signs in to RGW with on
+// behalf of user. RGW users can exist without S3 keys, which is an error here
+// rather than an index out of range in a provisioner worker.
+func userS3Key(user admin.User, userName string) (accessKeyID, secretAccessKey string, err error) {
+	if len(user.Keys) == 0 {
+		return "", "", errors.Errorf("Ceph object user %q has no access keys", userName)
+	}
+	return user.Keys[0].AccessKey, user.Keys[0].SecretKey, nil
+}
+
 // Retrieve the s3 access credentials for the rgw user.  The rgw user will be
 // created if appropriate.
 func (b *bucket) getUserCreds() (accessKeyID, secretAccessKey string, err error) {
@@ -43,8 +53,7 @@ func (b *bucket) getUserCreds() (accessKeyID, secretAccessKey string, err error)
 			err = errors.Wrapf(err, "Ceph object user %q not found", p.cephUserName)
 			return
 		}
-		accessKeyID = user.Keys[0].AccessKey
-		secretAccessKey = user.Keys[0].SecretKey
+		accessKeyID, secretAccessKey, err = userS3Key(user, p.cephUserName)
 	}
 
 	return
@@ -111,8 +120,13 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 		log.NamedInfo(nsName, logger, "Ceph object user %q already exists", username)
 	}
 
+	accKey, secKey, err = userS3Key(u, username)
+	if err != nil {
+		return "", "", err
+	}
+
 	log.NamedInfo(nsName, logger, "successfully created Ceph object user %q with access keys", username)
-	return u.Keys[0].AccessKey, u.Keys[0].SecretKey, nil
+	return accKey, secKey, nil
 }
 
 func (p *Provisioner) genUserName(obc *bktv1alpha1.ObjectBucketClaim) string {

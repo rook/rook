@@ -20,10 +20,13 @@ package objectuser
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -43,13 +46,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/events"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -518,6 +524,14 @@ func TestBuildUpdateStatusInfo(t *testing.T) {
 		statusInfo := generateStatusInfo(cephObjectStoreUser, &admin.User{DefaultPlacement: "hot-tier/STANDARD_IA"})
 		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
 		assert.Equal(t, "STANDARD_IA", statusInfo["defaultStorageClass"])
+	})
+
+	t.Run("user without S3 keys has no secret name", func(t *testing.T) {
+		keyless := cephObjectStoreUser.DeepCopy()
+		keyless.Spec.DisableS3Keys = new(true)
+		statusInfo := generateStatusInfo(keyless, &admin.User{DefaultPlacement: "hot-tier"})
+		assert.NotContains(t, statusInfo, "secretName")
+		assert.Equal(t, "hot-tier", statusInfo["defaultPlacement"])
 	})
 }
 
@@ -1564,4 +1578,483 @@ func TestCreateOrUpdateCephUserDoesNotLogKeySecret(t *testing.T) {
 	assert.NotContains(t, logOutput, liveSecretKey)
 	// the reconcile is still traceable by user name
 	assert.Contains(t, logOutput, "my-user")
+}
+
+//nolint:gosec // only test values, not real credentials
+const (
+	generatedAccessKey = "GENERATEDACCESSKEY01"
+	generatedSecretKey = "generatedsecretkey0000000000000000000001"
+)
+
+// fakeRGWUser is an admin ops API holding the single RGW user "my-user". It
+// keeps the user's keys between requests, so each reconcile in a test acts on
+// the keys that the previous step left behind.
+type fakeRGWUser struct {
+	exists   bool
+	keys     []admin.UserKeySpec
+	requests []rgwRequest
+	// failKeyRemoval, when set, makes the key removal request with that 1-based
+	// sequence number fail
+	failKeyRemoval int
+	keyRemovals    int
+}
+
+type rgwRequest struct {
+	method string
+	query  url.Values
+}
+
+func (f *fakeRGWUser) do(req *http.Request) (*http.Response, error) {
+	q := req.URL.Query()
+	f.requests = append(f.requests, rgwRequest{method: req.Method, query: q})
+
+	switch {
+	case q.Has("quota"):
+		return rgwResponse(http.StatusOK, struct{}{})
+	case q.Has("key") && req.Method == http.MethodPut:
+		f.keys = append(f.keys, admin.UserKeySpec{User: name, AccessKey: q.Get("access-key"), SecretKey: q.Get("secret-key")})
+		return rgwResponse(http.StatusOK, f.keys)
+	case q.Has("key") && req.Method == http.MethodDelete:
+		f.keyRemovals++
+		if f.keyRemovals == f.failKeyRemoval {
+			return rgwResponse(http.StatusInternalServerError, map[string]string{"Code": "UnknownError"})
+		}
+		f.keys = slices.DeleteFunc(f.keys, func(k admin.UserKeySpec) bool { return k.AccessKey == q.Get("access-key") })
+		return rgwResponse(http.StatusOK, struct{}{})
+	case req.Method == http.MethodPut:
+		f.exists = true
+		// as RGW does, generate a key unless the request asks for none
+		if q.Get("generate-key") != "false" {
+			f.keys = append(f.keys, admin.UserKeySpec{User: name, AccessKey: generatedAccessKey, SecretKey: generatedSecretKey})
+		}
+		return rgwResponse(http.StatusOK, f.user())
+	case req.Method == http.MethodGet && !f.exists:
+		return rgwResponse(http.StatusNotFound, map[string]string{"Code": string(admin.ErrNoSuchUser)})
+	case req.Method == http.MethodGet:
+		return rgwResponse(http.StatusOK, f.user())
+	}
+	return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL)
+}
+
+func (f *fakeRGWUser) user() admin.User {
+	return admin.User{ID: name, DisplayName: name, MaxBuckets: new(1000), OpMask: "read, write, delete", Keys: slices.Clone(f.keys)}
+}
+
+// userCreations returns the query of every user creation request.
+func (f *fakeRGWUser) userCreations() []url.Values {
+	var creations []url.Values
+	for _, r := range f.requests {
+		if r.method == http.MethodPut && !r.query.Has("key") && !r.query.Has("quota") {
+			creations = append(creations, r.query)
+		}
+	}
+	return creations
+}
+
+// keyRequests returns the access key named by every key request of the given method.
+func (f *fakeRGWUser) keyRequests(method string) []string {
+	var accessKeys []string
+	for _, r := range f.requests {
+		if r.method == method && r.query.Has("key") {
+			accessKeys = append(accessKeys, r.query.Get("access-key"))
+		}
+	}
+	return accessKeys
+}
+
+func rgwResponse(status int, body any) (*http.Response, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return &http.Response{StatusCode: status, Body: io.NopCloser(bytes.NewReader(b))}, nil
+}
+
+// newFakeRGWReconciler returns a reconciler whose admin ops API is rgw and
+// whose Kubernetes API holds objs and a CephCluster and CephObjectStore that
+// are ready. funcs intercepts calls to the Kubernetes API.
+func newFakeRGWReconciler(t *testing.T, rgw *fakeRGWUser, funcs interceptor.Funcs, objs ...client.Object) *ReconcileObjectStoreUser {
+	t.Helper()
+	ctx := t.Context()
+
+	s := runtime.NewScheme()
+	require.NoError(t, cephv1.AddToScheme(s))
+	require.NoError(t, corev1.AddToScheme(s))
+
+	objs = append(objs,
+		&cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: namespace, Namespace: namespace},
+			Status:     cephv1.ClusterStatus{Phase: k8sutil.ReadyStatus, CephStatus: &cephv1.CephStatus{Health: "HEALTH_OK"}},
+		},
+		&cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{Name: store, Namespace: namespace},
+			Spec:       cephv1.ObjectStoreSpec{Gateway: cephv1.GatewaySpec{Port: 80}},
+			Status:     &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph:80"}},
+		},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-rgw-my-store-a",
+			Namespace: namespace,
+			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": store},
+		}},
+	)
+	cl := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).WithInterceptorFuncs(funcs).Build()
+
+	clientset := test.New(t, 3)
+	_, err := clientset.CoreV1().Secrets(namespace).Create(ctx, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: namespace},
+		Data: map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	previous := newMultisiteAdminOpsCtxFunc
+	t.Cleanup(func() { newMultisiteAdminOpsCtxFunc = previous })
+	newMultisiteAdminOpsCtxFunc = func(objContext *cephobject.Context, _ *cephv1.ObjectStoreSpec) (*cephobject.AdminOpsContext, error) {
+		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", &cephobject.MockClient{MockDo: rgw.do})
+		if err != nil {
+			return nil, err
+		}
+		return &cephobject.AdminOpsContext{Context: *objContext, AdminOpsClient: adminClient}, nil
+	}
+
+	return &ReconcileObjectStoreUser{
+		client: cl,
+		scheme: s,
+		context: &clusterd.Context{
+			Executor: &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+					if args[0] == "versions" {
+						return cephMonVersionsJSON, nil
+					}
+					return "", nil
+				},
+			},
+			Clientset: clientset,
+		},
+		opManagerContext: ctx,
+		recorder:         events.NewFakeRecorder(100),
+	}
+}
+
+// objectStoreUser returns the CephObjectStoreUser "my-user" with the
+// controller's finalizer already added.
+func objectStoreUser(spec cephv1.ObjectStoreUserSpec) *cephv1.CephObjectStoreUser {
+	spec.Store = store
+	return &cephv1.CephObjectStoreUser{
+		TypeMeta: metav1.TypeMeta{Kind: "CephObjectStoreUser", APIVersion: cephv1.SchemeGroupVersion.String()},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       name,
+			Namespace:  namespace,
+			UID:        "user-uid",
+			Finalizers: []string{"cephobjectstoreuser.ceph.rook.io"},
+		},
+		Spec: spec,
+	}
+}
+
+func getObjectStoreUser(t *testing.T, r *ReconcileObjectStoreUser) *cephv1.CephObjectStoreUser {
+	t.Helper()
+	u := &cephv1.CephObjectStoreUser{}
+	require.NoError(t, r.client.Get(t.Context(), types.NamespacedName{Name: name, Namespace: namespace}, u))
+	require.NotNil(t, u.Status)
+	return u
+}
+
+// captureInfoLogs collects this package's log output at INFO, the default
+// level, for the rest of the test.
+func captureInfoLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	logBuf := bytes.NewBuffer([]byte{})
+	capnslog.SetFormatter(capnslog.NewLogFormatter(logBuf, "", 0))
+	capnslog.SetGlobalLogLevel(capnslog.INFO)
+	// restore the sink and the level the rest of this file's tests log at
+	t.Cleanup(func() {
+		capnslog.SetFormatter(capnslog.NewDefaultFormatter(os.Stderr))
+		capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	})
+	return logBuf
+}
+
+func TestReconcileDisableS3Keys(t *testing.T) {
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	var (
+		req         = reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}
+		secretName  = types.NamespacedName{Name: "rook-ceph-object-user-my-store-my-user", Namespace: namespace}
+		userGVK     = cephv1.SchemeGroupVersion.WithKind("CephObjectStoreUser")
+		keylessSpec = cephv1.ObjectStoreUserSpec{DisableS3Keys: new(true)}
+		liveKeys    = []admin.UserKeySpec{
+			{User: name, AccessKey: "EXAMPLEACCESSKEY0001", SecretKey: "examplesecretkey0001"},
+			{User: name, AccessKey: "EXAMPLEACCESSKEY0002", SecretKey: "examplesecretkey0002"},
+			// RGW lists the S3 keys of the user's subusers alongside its own
+			{User: name + ":sub", AccessKey: "EXAMPLEACCESSKEY0003", SecretKey: "examplesecretkey0003"},
+		}
+		liveAccessKeys = []string{"EXAMPLEACCESSKEY0001", "EXAMPLEACCESSKEY0002", "EXAMPLEACCESSKEY0003"}
+	)
+	credentialsSecret := func(owners ...metav1.OwnerReference) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName.Name, Namespace: secretName.Namespace, OwnerReferences: owners},
+			Data:       map[string][]byte{"AccessKey": []byte(liveKeys[0].AccessKey)},
+		}
+	}
+
+	t.Run("creating a user sends generate-key=false, writes no Secret, and reaches Ready", func(t *testing.T) {
+		rgw := &fakeRGWUser{}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(keylessSpec))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		creations := rgw.userCreations()
+		require.Len(t, creations, 1)
+		assert.Equal(t, "false", creations[0].Get("generate-key"))
+		assert.Empty(t, rgw.keys)
+		err = r.client.Get(t.Context(), secretName, &corev1.Secret{})
+		assert.True(t, kerrors.IsNotFound(err), err)
+
+		u := getObjectStoreUser(t, r)
+		assert.Equal(t, k8sutil.ReadyStatus, u.Status.Phase)
+		assert.NotContains(t, u.Status.Info, "secretName")
+		assert.Empty(t, u.Status.Keys)
+	})
+
+	t.Run("every key of an existing user is removed", func(t *testing.T) {
+		rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys)}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(keylessSpec))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		assert.ElementsMatch(t, liveAccessKeys, rgw.keyRequests(http.MethodDelete))
+		assert.Empty(t, rgw.keys)
+		assert.Empty(t, rgw.keyRequests(http.MethodPut))
+		assert.Empty(t, rgw.userCreations())
+		assert.Equal(t, k8sutil.ReadyStatus, getObjectStoreUser(t, r).Status.Phase)
+	})
+
+	t.Run("a Secret the user controls is deleted after its keys are removed", func(t *testing.T) {
+		user := objectStoreUser(keylessSpec)
+		rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys)}
+		keysWhenDeleted := -1
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{
+			Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+				if _, ok := obj.(*corev1.Secret); ok {
+					keysWhenDeleted = len(rgw.keys)
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}, user, credentialsSecret(*metav1.NewControllerRef(user, userGVK)))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		err = r.client.Get(t.Context(), secretName, &corev1.Secret{})
+		assert.True(t, kerrors.IsNotFound(err), err)
+		assert.Equal(t, 0, keysWhenDeleted)
+		assert.Equal(t, k8sutil.ReadyStatus, getObjectStoreUser(t, r).Status.Phase)
+	})
+
+	notControlled := []struct {
+		name   string
+		owners []metav1.OwnerReference
+	}{
+		{"no owner", nil},
+		{"owned by the user but not as its controller", []metav1.OwnerReference{
+			{APIVersion: userGVK.GroupVersion().String(), Kind: userGVK.Kind, Name: name, UID: "user-uid"},
+		}},
+		{"controlled by an earlier user of the same name", []metav1.OwnerReference{
+			{APIVersion: userGVK.GroupVersion().String(), Kind: userGVK.Kind, Name: name, UID: "earlier-user-uid", Controller: new(true)},
+		}},
+	}
+	for _, tt := range notControlled {
+		t.Run("a Secret the user does not control is kept: "+tt.name, func(t *testing.T) {
+			rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys)}
+			r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(keylessSpec), credentialsSecret(tt.owners...))
+
+			_, err := r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+
+			secret := &corev1.Secret{}
+			require.NoError(t, r.client.Get(t.Context(), secretName, secret))
+			assert.Equal(t, credentialsSecret().Data, secret.Data)
+			assert.Empty(t, rgw.keys)
+			assert.Equal(t, k8sutil.ReadyStatus, getObjectStoreUser(t, r).Status.Phase)
+		})
+	}
+
+	t.Run("removing keys and the Secret is logged at info without access keys", func(t *testing.T) {
+		logBuf := captureInfoLogs(t)
+
+		user := objectStoreUser(keylessSpec)
+		rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys)}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, user, credentialsSecret(*metav1.NewControllerRef(user, userGVK)))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		logOutput := logBuf.String()
+		assert.Equal(t, 1, strings.Count(logOutput, "removed 3 S3 key(s)"), logOutput)
+		assert.Equal(t, 1, strings.Count(logOutput, fmt.Sprintf("deleted secret %q", secretName.Name)), logOutput)
+		for _, accessKey := range liveAccessKeys {
+			assert.NotContains(t, logOutput, accessKey)
+		}
+
+		logBuf.Reset()
+		_, err = r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		logOutput = logBuf.String()
+		assert.NotContains(t, logOutput, "S3 key(s)")
+		assert.NotContains(t, logOutput, "deleted secret")
+	})
+
+	t.Run("a Secret changed since it was read is not deleted", func(t *testing.T) {
+		user := objectStoreUser(keylessSpec)
+		rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys)}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{
+			// the reconciler's reads come from an informer cache, which can lag a write
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if err := c.Get(ctx, key, obj, opts...); err != nil {
+					return err
+				}
+				if secret, ok := obj.(*corev1.Secret); ok && key == secretName {
+					secret.ResourceVersion = "stale"
+				}
+				return nil
+			},
+		}, user, credentialsSecret(*metav1.NewControllerRef(user, userGVK)))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.Error(t, err)
+		assert.True(t, kerrors.IsConflict(err), err)
+
+		secret := &corev1.Secret{}
+		require.NoError(t, r.client.Get(t.Context(), secretName, secret))
+		assert.Equal(t, credentialsSecret().Data, secret.Data)
+		assert.Equal(t, k8sutil.ReconcileFailedStatus, getObjectStoreUser(t, r).Status.Phase)
+	})
+
+	t.Run("a key removal that fails part-way reports the keys it removed and keeps the Secret", func(t *testing.T) {
+		logBuf := captureInfoLogs(t)
+
+		user := objectStoreUser(keylessSpec)
+		rgw := &fakeRGWUser{exists: true, keys: slices.Clone(liveKeys), failKeyRemoval: 2}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, user, credentialsSecret(*metav1.NewControllerRef(user, userGVK)))
+
+		_, err := r.Reconcile(t.Context(), req)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, fmt.Sprintf("failed to remove key 1 from user %q", name))
+
+		assert.Equal(t, liveKeys[1:], rgw.keys)
+		require.NoError(t, r.client.Get(t.Context(), secretName, &corev1.Secret{}))
+		assert.Equal(t, k8sutil.ReconcileFailedStatus, getObjectStoreUser(t, r).Status.Phase)
+
+		logOutput := logBuf.String()
+		assert.Equal(t, 1, strings.Count(logOutput, "removed 1 S3 key(s)"), logOutput)
+		assert.NotContains(t, logOutput, "deleted secret")
+		for _, accessKey := range liveAccessKeys {
+			assert.NotContains(t, logOutput, accessKey)
+		}
+	})
+
+	t.Run("turning the field off with keys declared creates the declared keys", func(t *testing.T) {
+		declared := awsKeySecret("declared-key", "DECLAREDACCESSKEY001", "declaredsecretkey000000000000000000000001")
+		rgw := &fakeRGWUser{}
+		r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(keylessSpec), declared)
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+		require.True(t, rgw.exists)
+		require.Empty(t, rgw.keys)
+
+		u := getObjectStoreUser(t, r)
+		u.Spec.DisableS3Keys = new(false)
+		u.Spec.Keys = []cephv1.ObjectUserKey{awsKeyRef(declared.Name)}
+		require.NoError(t, r.client.Update(t.Context(), u))
+
+		_, err = r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"DECLAREDACCESSKEY001"}, rgw.keyRequests(http.MethodPut))
+		require.Len(t, rgw.keys, 1)
+		assert.Equal(t, "DECLAREDACCESSKEY001", rgw.keys[0].AccessKey)
+		assert.Equal(t, "declaredsecretkey000000000000000000000001", rgw.keys[0].SecretKey)
+		assert.Len(t, rgw.userCreations(), 1)
+		assert.Equal(t, k8sutil.ReadyStatus, getObjectStoreUser(t, r).Status.Phase)
+	})
+
+	defaultModes := []struct {
+		name          string
+		disableS3Keys *bool
+	}{
+		{"absent", nil},
+		{"false", new(false)},
+	}
+
+	for _, mode := range defaultModes {
+		t.Run("turning the field off with no keys declared fails with no keys set for user: "+mode.name, func(t *testing.T) {
+			rgw := &fakeRGWUser{}
+			r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(keylessSpec))
+			_, err := r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+			require.True(t, rgw.exists)
+
+			u := getObjectStoreUser(t, r)
+			u.Spec.DisableS3Keys = mode.disableS3Keys
+			require.NoError(t, r.client.Update(t.Context(), u))
+			requestsBefore := len(rgw.requests)
+
+			_, err = r.Reconcile(t.Context(), req)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "no keys set for user")
+
+			for _, rr := range rgw.requests[requestsBefore:] {
+				assert.False(t, rr.query.Has("generate-key"), "%s %s", rr.method, rr.query.Encode())
+			}
+			assert.Len(t, rgw.userCreations(), 1)
+			assert.Empty(t, rgw.keyRequests(http.MethodPut))
+			assert.Empty(t, rgw.keys)
+			assert.Equal(t, k8sutil.ReconcileFailedStatus, getObjectStoreUser(t, r).Status.Phase)
+		})
+	}
+
+	for _, mode := range defaultModes {
+		t.Run("creating a user in the default mode does not send generate-key: "+mode.name, func(t *testing.T) {
+			rgw := &fakeRGWUser{}
+			r := newFakeRGWReconciler(t, rgw, interceptor.Funcs{}, objectStoreUser(cephv1.ObjectStoreUserSpec{DisableS3Keys: mode.disableS3Keys}))
+
+			_, err := r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+
+			creations := rgw.userCreations()
+			require.Len(t, creations, 1)
+			assert.False(t, creations[0].Has("generate-key"))
+			secret := &corev1.Secret{}
+			require.NoError(t, r.client.Get(t.Context(), secretName, secret))
+			assert.Equal(t, generatedAccessKey, secret.StringData["AccessKey"])
+
+			u := getObjectStoreUser(t, r)
+			assert.Equal(t, k8sutil.ReadyStatus, u.Status.Phase)
+			assert.Equal(t, secretName.Name, u.Status.Info["secretName"])
+		})
+	}
+}
+
+func awsKeySecret(secretName, accessKey, secretKey string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+		Data: map[string][]byte{
+			"AWS_ACCESS_KEY_ID":     []byte(accessKey),
+			"AWS_SECRET_ACCESS_KEY": []byte(secretKey),
+		},
+	}
+}
+
+func awsKeyRef(secretName string) cephv1.ObjectUserKey {
+	return cephv1.ObjectUserKey{
+		AccessKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: secretName}, Key: "AWS_ACCESS_KEY_ID"},
+		SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: secretName}, Key: "AWS_SECRET_ACCESS_KEY"},
+	}
 }

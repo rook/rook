@@ -89,6 +89,13 @@ spec:
     * `read`
     * `write`
     * `delete`
+* `disableS3Keys`: When `true`, the user has no S3 keys. Rook creates the user without a key, removes every S3 key
+    that RGW lists for the user each time it reconciles the user, and keeps no
+    `rook-ceph-object-user-<store>-<name>` Secret: it deletes that Secret if this CephObjectStoreUser is its controller
+    owner, and the user's status names no Secret. `secretTemplate` has no effect while no Secret is written. The default
+    is `false`. This setting cannot be combined with `keys`. Setting it back to `false`, or removing it, does not
+    generate a key. See [Users without S3 keys](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#users-without-s3-keys)
+    for how to give the user keys again and for the limits of this setting.
 * `secretTemplate`: Labels and annotations to add to the Secret that holds the user's credentials,
     `rook-ceph-object-user-<store>-<name>`. Tools that copy Secrets into other namespaces, such as Reflector,
     kubernetes-replicator, or a Kyverno generate policy, select the Secrets to copy by label or annotation, so this

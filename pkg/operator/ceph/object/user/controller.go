@@ -442,7 +442,12 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	liveUser, err := r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *targetUser)
+			newUser := *targetUser
+			if s3KeysDisabled(u) {
+				// RGW generates a key for a new user unless it is told not to
+				newUser.GenerateKey = new(false)
+			}
+			liveUser, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, newUser)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create ceph object user %v", &targetUser.ID)
 			}
@@ -511,7 +516,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		return nil, errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
-	if len(targetUser.Keys) == 0 {
+	if len(targetUser.Keys) == 0 && !s3KeysDisabled(u) {
 		// use the keys already set on the user & remove all but one key
 		if len(liveUser.Keys) == 0 {
 			// something is wrong, there should be at least one key
@@ -522,7 +527,11 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		log.NamedDebug(nsName, logger, "reducing user %q from %d keypairs to 1", u.Name, len(liveUser.Keys))
 	}
 
-	if err := r.reconcileUserKeys(nsName, targetUser.Keys); err != nil {
+	purged, err := r.reconcileUserKeys(nsName, targetUser.Keys)
+	if s3KeysDisabled(u) && purged > 0 {
+		log.NamedInfo(nsName, logger, "removed %d S3 key(s) from user %q because disableS3Keys is set", purged, u.Name)
+	}
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
 	}
 	log.NamedInfo(nsName, logger, "%s", logCreateOrUpdate)
@@ -715,13 +724,21 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser, cephVersion cephver.Ce
 	return userConfig, nil
 }
 
+// s3KeysDisabled reports whether the user declares that it has no S3 keys. An
+// unset disableS3Keys means the same as false.
+func s3KeysDisabled(u *cephv1.CephObjectStoreUser) bool {
+	return u.Spec.DisableS3Keys != nil && *u.Spec.DisableS3Keys
+}
+
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
 	return fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
 }
 
 func generateStatusInfo(u *cephv1.CephObjectStoreUser, liveUser *admin.User) map[string]string {
 	m := make(map[string]string)
-	m["secretName"] = generateCephUserSecretName(u)
+	if !s3KeysDisabled(u) {
+		m["secretName"] = generateCephUserSecretName(u)
+	}
 	if liveUser != nil {
 		if live := placementRuleOf(liveUser); live.hasPlacement() {
 			m["defaultPlacement"] = live.name
@@ -819,6 +836,10 @@ func validateSecretTemplate(u *cephv1.CephObjectStoreUser) error {
 }
 
 func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User, tlsSecretName string) (reconcile.Result, error) {
+	if s3KeysDisabled(cephObjectStoreUser) {
+		return reconcile.Result{}, r.deleteCephUserSecret(cephObjectStoreUser)
+	}
+
 	// Generate Kubernetes Secret
 	secret := r.generateCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 
@@ -833,6 +854,38 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// deleteCephUserSecret deletes the user's credentials Secret if the
+// CephObjectStoreUser is its controller. A Secret of that name that anything
+// else created is left in place.
+func (r *ReconcileObjectStoreUser) deleteCephUserSecret(u *cephv1.CephObjectStoreUser) error {
+	nsName := opcontroller.NsName(u.Namespace, u.Name)
+	key := types.NamespacedName{Name: generateCephUserSecretName(u), Namespace: u.Namespace}
+
+	secret := &corev1.Secret{}
+	if err := r.client.Get(r.opManagerContext, key, secret); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		return errors.Wrapf(err, "failed to get ceph object user secret %q", key.Name)
+	}
+	if !metav1.IsControlledBy(secret, u) {
+		log.NamedDebug(nsName, logger, "not deleting secret %q because the CephObjectStoreUser does not control it", key.Name)
+		return nil
+	}
+
+	// the Get may be served from a stale cache: the preconditions stop a
+	// replaced or re-owned Secret of the same name from being deleted
+	err := r.client.Delete(r.opManagerContext, secret, client.Preconditions{UID: &secret.UID, ResourceVersion: &secret.ResourceVersion})
+	if kerrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete ceph object user secret %q", key.Name)
+	}
+	log.NamedInfo(nsName, logger, "deleted secret %q because disableS3Keys is set", key.Name)
+	return nil
 }
 
 func (r *ReconcileObjectStoreUser) getObjectStore(user *cephv1.CephObjectStoreUser) (*cephv1.CephObjectStore, error) {
@@ -1046,15 +1099,17 @@ func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySele
 }
 
 // reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
-func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, targetKeys []admin.UserKeySpec) error {
+// It returns how many keys were purged, a count that holds even when it also returns an error.
+func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName, targetKeys []admin.UserKeySpec) (int, error) {
 	ctx := r.opManagerContext
 	client := r.objContext.AdminOpsClient
 	userID := nsName.Name
+	purged := 0
 
 	// fetch the current user keys
 	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
 	if err != nil {
-		return errors.Wrapf(err, "failed to get user %q", userID)
+		return 0, errors.Wrapf(err, "failed to get user %q", userID)
 	}
 
 	// create a lookup for the targetKeys (by AccessKey)
@@ -1077,8 +1132,9 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 				// the returned error omits the access key ID because it reaches Kubernetes
 				// events and the CR status; name the key here so debug logs still have it
 				log.NamedDebug(nsName, logger, "failed to remove key %q from user %q. %v", existingKey.AccessKey, userID, err)
-				return errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
+				return purged, errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
 			}
+			purged++
 			log.NamedDebug(nsName, logger, "removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
 			continue
 		}
@@ -1090,7 +1146,7 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 
 			if err := client.RemoveKey(ctx, rmKey); err != nil {
 				log.NamedDebug(nsName, logger, "failed to remove key %q from user %q. %v", existingKey.AccessKey, userID, err)
-				return errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
+				return purged, errors.Wrapf(err, "failed to remove key %d from user %q", i, userID)
 			}
 			log.NamedDebug(nsName, logger, "removed key %q from user %q as it needs to be recreated", existingKey.AccessKey, userID)
 			continue
@@ -1109,12 +1165,12 @@ func (r *ReconcileObjectStoreUser) reconcileUserKeys(nsName types.NamespacedName
 	for _, k := range targetMap {
 		if _, err := client.CreateKey(ctx, k); err != nil {
 			log.NamedDebug(nsName, logger, "failed to create key %q for user %q. %v", k.AccessKey, userID, err)
-			return errors.Wrapf(err, "failed to create a key for user %q", userID)
+			return purged, errors.Wrapf(err, "failed to create a key for user %q", userID)
 		}
 		log.NamedDebug(nsName, logger, "created key %q for user %q", k.AccessKey, userID)
 	}
 
-	return nil
+	return purged, nil
 }
 
 // Construct a []admin.UserKeySpec from all secrets referenced from CephObjectStoreUser.Spec.Keys

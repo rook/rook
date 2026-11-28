@@ -17,6 +17,8 @@ Notes for the v1.22.0 release, including breaking changes and new features.
 - `CephObjectStoreUser` gained `spec.secretTemplate`, which adds labels and annotations to the Secret that holds the
   user's credentials, for example to opt the Secret in to a tool that copies Secrets into other namespaces. Keys that
   Rook sets or acts on are reserved.
+- `CephObjectStoreUser` gained `spec.disableS3Keys`, which declares that the user has no S3 keys: Rook creates the user
+  without a key, removes any S3 keys it has, and keeps no Secret holding credentials for it.
 - RGW SSE-S3 accepts `VAULT_TRANSIT_BACKEND_PATH` in `security.s3.connectionDetails` for a Vault transit engine that is
   not mounted at the default `transit` path. RGW SSE-KMS with the `transit` engine accepts it in
   `security.kms.connectionDetails` too.

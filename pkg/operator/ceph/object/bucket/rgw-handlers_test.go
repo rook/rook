@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -33,6 +34,7 @@ import (
 	cephobject "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,6 +42,118 @@ type statusError struct {
 	Code      string `json:"Code,omitempty"`
 	RequestID string `json:"RequestId,omitempty"`
 	HostID    string `json:"HostId,omitempty"`
+}
+
+//nolint:gosec // only test values, not real credentials
+const (
+	testUserAccessKey = "OWNERACCESSKEY000001"
+	testUserSecretKey = "ownersecretkey00000000000000000000000001"
+	testUserKeysJSON  = `[{"access_key":"` + testUserAccessKey + `","secret_key":"` + testUserSecretKey + `"}]`
+)
+
+// testUserJSON is an RGW user info reply for user, with keys as its JSON list of S3 keys.
+func testUserJSON(user, keys string) string {
+	return fmt.Sprintf(`{"user_id":%q,"display_name":%q,"keys":%s}`, user, user, keys)
+}
+
+func rgwReply(status int, body string) *http.Response {
+	return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(body))}
+}
+
+func TestGetUserCredsBucketOwnerKeys(t *testing.T) {
+	owner := "alice"
+
+	for _, tt := range []struct {
+		name       string
+		keys       string
+		wantErr    string
+		wantAccess string
+		wantSecret string
+	}{
+		{name: "owner without S3 keys", keys: `[]`, wantErr: `Ceph object user "alice" has no access keys`},
+		{name: "owner with an S3 key", keys: testUserKeysJSON, wantAccess: testUserAccessKey, wantSecret: testUserSecretKey},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", &cephobject.MockClient{
+				MockDo: func(req *http.Request) (*http.Response, error) {
+					if req.Method == http.MethodGet && req.URL.Path == userPath {
+						return rgwReply(http.StatusOK, testUserJSON(owner, tt.keys)), nil
+					}
+					return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL)
+				},
+			})
+			require.NoError(t, err)
+			b := &bucket{
+				provisioner:      &Provisioner{cephUserName: owner, adminOpsClient: adminClient, clusterInfo: client.AdminTestClusterInfo("ns")},
+				additionalConfig: &additionalConfigSpec{bucketOwner: &owner},
+			}
+
+			accessKey, secretKey, err := b.getUserCreds()
+
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tt.wantErr)
+			}
+			assert.Equal(t, tt.wantAccess, accessKey)
+			assert.Equal(t, tt.wantSecret, secretKey)
+		})
+	}
+}
+
+func TestCreateCephUserKeys(t *testing.T) {
+	const user = "obc-ns-claim-6e7c4d3f-3494-4dc1-90dc-58527fdf05d7"
+	noSuchUser, err := json.Marshal(statusError{"NoSuchUser", "requestid", "hostid"})
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		name       string
+		exists     bool
+		keys       string
+		wantErr    string
+		wantAccess string
+		wantSecret string
+	}{
+		{name: "existing user without S3 keys", exists: true, keys: `[]`, wantErr: `Ceph object user "` + user + `" has no access keys`},
+		{name: "created user without S3 keys", keys: `[]`, wantErr: `Ceph object user "` + user + `" has no access keys`},
+		{name: "existing user with an S3 key", exists: true, keys: testUserKeysJSON, wantAccess: testUserAccessKey, wantSecret: testUserSecretKey},
+		{name: "created user with an S3 key", keys: testUserKeysJSON, wantAccess: testUserAccessKey, wantSecret: testUserSecretKey},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var created bool
+			adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", &cephobject.MockClient{
+				MockDo: func(req *http.Request) (*http.Response, error) {
+					switch {
+					case req.URL.Path != userPath:
+					case req.Method == http.MethodGet && !tt.exists:
+						return rgwReply(http.StatusNotFound, string(noSuchUser)), nil
+					case req.Method == http.MethodGet:
+						return rgwReply(http.StatusOK, testUserJSON(user, tt.keys)), nil
+					case req.Method == http.MethodPut && !tt.exists:
+						created = true
+						return rgwReply(http.StatusOK, testUserJSON(user, tt.keys)), nil
+					}
+					return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL)
+				},
+			})
+			require.NoError(t, err)
+			clusterInfo := client.AdminTestClusterInfo("ns")
+			p := NewProvisioner(&clusterd.Context{}, clusterInfo)
+			p.objectContext = cephobject.NewContext(p.context, clusterInfo, "store")
+			p.adminOpsClient = adminClient
+
+			accessKey, secretKey, err := p.createCephUser(user)
+
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tt.wantErr)
+			}
+			assert.Equal(t, tt.wantAccess, accessKey)
+			assert.Equal(t, tt.wantSecret, secretKey)
+			assert.Equal(t, !tt.exists, created)
+		})
+	}
 }
 
 func TestDeleteBucket(t *testing.T) {

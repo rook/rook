@@ -16198,13 +16198,22 @@ spec:
                   minLength: 1
                   pattern: ^[a-zA-Z0-9._-]+$
                   type: string
+                disableS3Keys:
+                  description: |-
+                    DisableS3Keys declares that the user has no S3 keys. When true, the user is created without a
+                    key, every S3 key found on the user is removed each time the user is reconciled, and no Secret
+                    holding credentials is kept for the user. It cannot be combined with keys.
+                    Setting it back to false does not generate a key: declare keys to give the user keys again.
+                    In a multisite realm, keys are removed only in the zone the user is reconciled in.
+                  type: boolean
                 displayName:
                   description: The display name for the ceph user.
                   type: string
                 keys:
                   description: |-
-                    Allows specifying credentials for the user. If not provided, the operator
-                    will generate them.
+                    Allows specifying credentials for the user. If not provided and disableS3Keys is not set, a key
+                    is generated as the user is created, and an existing user keeps one of the keys it already has
+                    and is not given a new one.
                   items:
                     description: |-
                       ObjectUserKey defines a set of rgw user access credentials to be retrieved
@@ -16362,6 +16371,8 @@ spec:
               x-kubernetes-validations:
                 - message: defaultStorageClass requires defaultPlacement
                   rule: '!has(self.defaultStorageClass) || has(self.defaultPlacement)'
+                - message: disableS3Keys cannot be combined with keys
+                  rule: '!has(self.disableS3Keys) || !self.disableS3Keys || !has(self.keys) || size(self.keys) == 0'
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User
               properties:
