@@ -17,11 +17,18 @@ limitations under the License.
 package notification
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/ceph/go-ceph/rgw/admin"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // The fallback is documented in the CRD description for
@@ -50,5 +57,46 @@ func TestCreateS3EventsFallback(t *testing.T) {
 			s3types.Event("s3:ObjectLifecycle:Expiration:Current"),
 			s3types.Event("s3:Replication:Create"),
 		}, createS3Events(events))
+	})
+}
+
+func TestGetUserCredentials(t *testing.T) {
+	const owner = "alice"
+
+	newAdminOpsContext := func(t *testing.T, userJSON string) *object.AdminOpsContext {
+		t.Helper()
+		mockClient := &object.MockClient{
+			MockDo: func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "rgw.test/admin/user" && req.URL.Query().Get("uid") == owner {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(userJSON)),
+					}, nil
+				}
+				return nil, fmt.Errorf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			},
+		}
+		adminClient, err := admin.New("rgw.test", "admin-access", "admin-secret", mockClient)
+		require.NoError(t, err)
+		return &object.AdminOpsContext{AdminOpsClient: adminClient}
+	}
+
+	// radosgw-admin key rm can leave a user with no S3 keys at all
+	t.Run("user without keys is an error", func(t *testing.T) {
+		adminOpsCtx := newAdminOpsContext(t, `{"user_id": "alice", "keys": [], "swift_keys": []}`)
+
+		accessKey, secretKey, err := getUserCredentials(adminOpsCtx, t.Context(), owner)
+		assert.EqualError(t, err, `ceph user "alice" has no access keys`)
+		assert.Empty(t, accessKey)
+		assert.Empty(t, secretKey)
+	})
+
+	t.Run("user with a key yields its credentials", func(t *testing.T) {
+		adminOpsCtx := newAdminOpsContext(t, `{"user_id": "alice", "keys": [{"user": "alice", "access_key": "alice-access", "secret_key": "alice-secret"}]}`)
+
+		accessKey, secretKey, err := getUserCredentials(adminOpsCtx, t.Context(), owner)
+		assert.NoError(t, err)
+		assert.Equal(t, "alice-access", accessKey)
+		assert.Equal(t, "alice-secret", secretKey)
 	})
 }

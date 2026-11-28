@@ -59,6 +59,10 @@ func getUserCredentials(adminOpsCtx *object.AdminOpsContext, opManagerContext co
 	}
 
 	logger.Infof("successfully fetched ceph user %q", username)
+	if len(u.Keys) == 0 {
+		err = errors.Errorf("ceph user %q has no access keys", username)
+		return
+	}
 	accessKey = u.Keys[0].AccessKey
 	secretKey = u.Keys[0].SecretKey
 	return

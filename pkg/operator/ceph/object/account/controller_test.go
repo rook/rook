@@ -1859,6 +1859,72 @@ func TestReconcileRootUser(t *testing.T) {
 		assert.Equal(t, "rook-ceph-object-root-user-my-account", secretName)
 	})
 
+	// RGW answers the modify of an existing root user with that user's current keys, so serving
+	// the same user for the lookup and the modify models keys removed out of band, e.g. with
+	// radosgw-admin key rm.
+	reconcilerForExistingRootUser := func(t *testing.T, account *cephv1.CephObjectStoreAccount, userJSON string) *ReconcileObjectStoreAccount {
+		t.Helper()
+		mockClient := &cephobject.MockClient{
+			MockDo: func(req *http.Request) (*http.Response, error) {
+				if (req.Method == http.MethodGet || req.Method == http.MethodPost) && strings.HasSuffix(req.URL.Path, "/admin/user") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(userJSON))),
+					}, nil
+				}
+				return nil, fmt.Errorf("unexpected request: method %q path %q", req.Method, req.URL.Path)
+			},
+		}
+		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "access", "secret", mockClient)
+		require.NoError(t, err)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreAccount{}, &cephv1.CephObjectStoreAccountList{})
+		return &ReconcileObjectStoreAccount{
+			client: fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(account).Build(),
+			scheme: s,
+			objContext: &cephobject.AdminOpsContext{
+				AdminOpsClient: adminClient,
+				Context:        cephobject.Context{Endpoint: "http://rook-ceph-rgw-my-store.rook-ceph:80"},
+			},
+			opManagerContext: ctx,
+		}
+	}
+
+	t.Run("existing root user without keys is an error", func(t *testing.T) {
+		uid := types.UID("d4e5f6a7-b8c9-4d0e-8f1a-2b3c4d5e6f7a")
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, UID: uid},
+			Spec:       cephv1.ObjectStoreAccountSpec{Store: store},
+		}
+		r := reconcilerForExistingRootUser(t, account, fmt.Sprintf(`{"user_id": "%s", "display_name": "root-my-account", "keys": []}`, uid))
+
+		secretName, err := r.reconcileRootUser(account, "RGW12345678901234567", objectStore)
+		assert.EqualError(t, err, fmt.Sprintf("failed to reconcile root user secret: root user %q has no access keys", uid))
+		assert.Empty(t, secretName)
+
+		err = r.client.Get(ctx, types.NamespacedName{Name: generateRootUserSecretName(account), Namespace: namespace}, &corev1.Secret{})
+		assert.True(t, kerrors.IsNotFound(err), "no root user secret should be written without keys")
+	})
+
+	t.Run("existing root user with a key writes its credentials to the secret", func(t *testing.T) {
+		uid := types.UID("e5f6a7b8-c9d0-4e1f-8a2b-3c4d5e6f7a8b")
+		account := &cephv1.CephObjectStoreAccount{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, UID: uid},
+			Spec:       cephv1.ObjectStoreAccountSpec{Store: store},
+		}
+		r := reconcilerForExistingRootUser(t, account, fmt.Sprintf(`{"user_id": "%s", "display_name": "root-my-account", "keys": [{"access_key": "AK333", "secret_key": "SK444"}]}`, uid))
+
+		secretName, err := r.reconcileRootUser(account, "RGW12345678901234567", objectStore)
+		require.NoError(t, err)
+		assert.Equal(t, generateRootUserSecretName(account), secretName)
+
+		secret := &corev1.Secret{}
+		require.NoError(t, r.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, secret))
+		assert.Equal(t, "AK333", secret.StringData["AccessKey"])
+		assert.Equal(t, "SK444", secret.StringData["SecretKey"])
+	})
+
 	t.Run("always updates even when display name matches", func(t *testing.T) {
 		uid := types.UID("c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f")
 		expectedDisplayName := fmt.Sprintf("root-%s", name)
