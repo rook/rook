@@ -23,6 +23,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -228,6 +230,38 @@ func TestAddEncryptionKey(t *testing.T) {
 			"passphrase", "newPassphrase", "0")
 		assert.NoError(t, err)
 	})
+}
+
+func TestSetLUKSLabelAndSubsystem(t *testing.T) {
+	var gotLabel string
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		if command == cryptsetupBinary && args[0] == "config" {
+			gotLabel = args[5]
+			return "", nil
+		}
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+	context := &clusterd.Context{Executor: executor}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "811e7dc0-ea13-4951-b000-24a8565d0735"}
+
+	tests := []struct {
+		name      string
+		pvcName   string
+		wantLabel string
+	}{
+		{"short label is unchanged", "set1-data-0abcde", "pvc_name=set1-data-0abcde"},
+		{"47 byte label is unchanged", "ocs-deviceset-lso-lv-for-odf-sc-0-data", "pvc_name=ocs-deviceset-lso-lv-for-odf-sc-0-data"},
+		{"long label is truncated to 47 bytes", "ocs-deviceset-lso-lv-for-odf-sc-0-data-1n4gk4", "pvc_name=ocs-deviceset-lso-lv-for-odf-sc-0-data"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(oposd.PVCNameEnvVarName, tt.pvcName)
+			err := setLUKSLabelAndSubsystem(context, clusterInfo, "/dev/sda")
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantLabel, gotLabel)
+		})
+	}
 }
 
 func TestDmsetupVersion(t *testing.T) {
