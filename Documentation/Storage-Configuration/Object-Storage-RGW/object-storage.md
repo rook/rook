@@ -655,6 +655,49 @@ data:
   AWS_SECRET_ACCESS_KEY: quxbar
 ```
 
+#### Users without S3 keys
+
+A user that exists only to own buckets, or that gets its access some other way, such as through STS, does not need
+S3 keys. Set `.spec.disableS3Keys` to `true` to declare that the user has none:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: bucket-owner
+  namespace: rook-ceph
+spec:
+  store: my-store
+  disableS3Keys: true
+```
+
+Rook creates the user without a key, and removes every S3 key that RGW lists for the user, whoever created it. Rook
+does not keep a `Secret` for the user: if the `rook-ceph-object-user-<store>-<name>` Secret exists and the
+`CephObjectStoreUser` is its controller owner, Rook deletes it. `disableS3Keys` cannot be combined with `.spec.keys`.
+
+!!! warning
+    Setting `disableS3Keys` on a user that is in use removes its keys and its `Secret`. Applications using them lose
+    access, and the removed keys cannot be recovered.
+
+The setting has these limits:
+
+* Keys are removed when Rook reconciles the user, not continuously. A key added to the user in RGW afterwards stays
+    until Rook next reconciles the user, such as when the spec of the `CephObjectStoreUser` changes or the operator
+    restarts, and the user reports `Ready` in the meantime.
+* Turning the setting off, by setting it to `false` or removing it, does not generate a key. A user that has no keys
+    and no `.spec.keys` then fails to reconcile with `no keys set for user`. To return the user to the default behavior,
+    where Rook keeps one key and publishes it in the `Secret`:
+    1. Set `disableS3Keys` to `false` and declare a key in `.spec.keys`.
+    2. Remove `.spec.keys`. Rook keeps the declared key and writes it to the `Secret`.
+* In a multisite configuration, Rook removes keys only in the zone of the object store it reconciles the user in, and
+    keys removed in one zone can keep working in the others. Declare a user without S3 keys, and give it keys again,
+    in the cluster that hosts the metadata master zone.
+* Do not name a user without S3 keys as the `bucketOwner` of an ObjectBucketClaim. Rook signs in to RGW with the
+    owner's S3 keys, so provisioning the claim's bucket, or granting it access to an existing bucket, fails with an
+    error. Deleting a claim whose bucket is kept, because the reclaim policy is `Retain` or the storage class names an
+    existing bucket, does not finish until the owner has keys again.
+* Do not use a user without S3 keys for COSI: the COSI driver reads the user's `Secret`.
+
 ## Enable TLS
 
 TLS is critical for securing object storage data access, and it is assumed as a default by many S3

@@ -2207,8 +2207,25 @@ ObjectUserQuotaSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Allows specifying credentials for the user. If not provided, the operator
-will generate them.</p>
+<p>Allows specifying credentials for the user. If not provided and disableS3Keys is not set, a key
+is generated as the user is created, and an existing user keeps one of the keys it already has
+and is not given a new one.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableS3Keys</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableS3Keys declares that the user has no S3 keys. When true, the user is created without a
+key, every S3 key found on the user is removed each time the user is reconciled, and no Secret
+holding credentials is kept for the user. It cannot be combined with keys.
+Setting it back to false does not generate a key: declare keys to give the user keys again.
+In a multisite realm, keys are removed only in the zone the user is reconciled in.</p>
 </td>
 </tr>
 <tr>
@@ -13220,8 +13237,25 @@ ObjectUserQuotaSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Allows specifying credentials for the user. If not provided, the operator
-will generate them.</p>
+<p>Allows specifying credentials for the user. If not provided and disableS3Keys is not set, a key
+is generated as the user is created, and an existing user keeps one of the keys it already has
+and is not given a new one.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableS3Keys</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableS3Keys declares that the user has no S3 keys. When true, the user is created without a
+key, every S3 key found on the user is removed each time the user is reconciled, and no Secret
+holding credentials is kept for the user. It cannot be combined with keys.
+Setting it back to false does not generate a key: declare keys to give the user keys again.
+In a multisite realm, keys are removed only in the zone the user is reconciled in.</p>
 </td>
 </tr>
 <tr>

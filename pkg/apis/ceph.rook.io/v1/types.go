@@ -2503,6 +2503,7 @@ type CephObjectStoreUserList struct {
 
 // ObjectStoreUserSpec represents the spec of a CephObjectStoreUser
 // +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
+// +kubebuilder:validation:XValidation:message="disableS3Keys cannot be combined with keys",rule="!has(self.disableS3Keys) || !self.disableS3Keys || !has(self.keys) || size(self.keys) == 0"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2516,10 +2517,18 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +nullable
 	Quotas *ObjectUserQuotaSpec `json:"quotas,omitempty"`
-	// Allows specifying credentials for the user. If not provided, the operator
-	// will generate them.
+	// Allows specifying credentials for the user. If not provided and disableS3Keys is not set, a key
+	// is generated as the user is created, and an existing user keeps one of the keys it already has
+	// and is not given a new one.
 	// +optional
 	Keys []ObjectUserKey `json:"keys,omitempty"`
+	// DisableS3Keys declares that the user has no S3 keys. When true, the user is created without a
+	// key, every S3 key found on the user is removed each time the user is reconciled, and no Secret
+	// holding credentials is kept for the user. It cannot be combined with keys.
+	// Setting it back to false does not generate a key: declare keys to give the user keys again.
+	// In a multisite realm, keys are removed only in the zone the user is reconciled in.
+	// +optional
+	DisableS3Keys *bool `json:"disableS3Keys,omitempty"`
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`

@@ -4707,6 +4707,11 @@ func (in *ObjectStoreUserSpec) DeepCopyInto(out *ObjectStoreUserSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.DisableS3Keys != nil {
+		in, out := &in.DisableS3Keys, &out.DisableS3Keys
+		*out = new(bool)
+		**out = **in
+	}
 	if in.OpMask != nil {
 		in, out := &in.OpMask, &out.OpMask
 		*out = new([]ObjectUserOpMask)
